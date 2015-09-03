@@ -11,7 +11,8 @@ import sys
 from Bio import SeqIO
 
 usage = """
-Usage: length_filter.py [in.fasta] [length cutoff]
+Discription: Discard the sequences shorter than the cutoff
+Usage: length_filter.py <in.fasta> <length cutoff>
 Output to stdout
 """
 
