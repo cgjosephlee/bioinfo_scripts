@@ -16,10 +16,11 @@ Usage: length_filter.py <in.fasta> <length cutoff>
 Output to stdout
 """
 
+
 def Usage():
     print usage
     sys.exit()
-    
+
 if len(sys.argv) == 1:
     Usage()
 

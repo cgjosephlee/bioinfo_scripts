@@ -19,9 +19,11 @@ One name per line in the list
 Output to stdout
 """
 
+
 def Usage():
     print usage
     sys.exit()
+
 
 def read_list():
     LIST = open(sys.argv[3], "r")
@@ -52,4 +54,3 @@ elif sys.argv[1] in ("discard", "d"):
 
 else:
     Usage()
-
