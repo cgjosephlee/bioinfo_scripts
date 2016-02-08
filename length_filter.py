@@ -3,7 +3,7 @@
 """
 Length filter for fasta files
 
-author: Hisn-han Lee
+author: Hsin-han Lee
 date: Sep, 2015
 """
 
