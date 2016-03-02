@@ -60,8 +60,8 @@ num_img=$(echo $img_url | tr " " "\n" | wc -l)
 echo "Found $num_img images..." >&2
 
 # check album_title
-re="http://imgur.com/a/([a-zA-Z]{5})"
-if [ ! $album_title ]; then
+re="http://imgur.com/a/([a-zA-Z0-9]{5})"
+if [ ! "$album_title" ]; then
     echo "No album name sepcified, output url directly..." >&2
     echo $img_url | tr " " "\n"
     exit 0
@@ -129,7 +129,7 @@ for i in $img_url; do
     else # other error code
         err_code=$(echo $response | sed -E 's/.*status="(.*)".*/\1/g')
         err_msg=$(echo $response | sed -E 's/.*<error>(.*)<\/error>.*/\1/')
-        echo "Error:" ＄err_code $err_msg >&2
+        echo "Error:" $err_code $err_msg >&2
         echo $i >&2
     fi
 done
