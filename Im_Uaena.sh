@@ -127,22 +127,29 @@ echo "Uploading images from urls..." >&2
 
 upload_num=0
 for i in $img_url; do
-    response=$(curl -X POST -F "album=$album_id" -F "image=$i" -H "Authorization: Bearer $token" https://api.imgur.com/3/image.xml 2> /dev/null)
-    
-    if [ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]; then # success
-        if $print_url; then
-            link=$(echo $response | sed -E 's/.*<link>(.*)<\/link>.*/\1/')
-            echo $link
-        else
-            upload_num=$(( $upload_num+1 ))
-            echo -ne "$upload_num/$num_img is done\r"
-    else # other error code
-        err_code=$(echo $response | sed -E 's/.*status="(.*)".*/\1/g')
-        err_msg=$(echo $response | sed -E 's/.*<error>(.*)<\/error>.*/\1/')
-        if ! $print_url; then
-            echo "" # to eliminate "\r"
+    for try in {1..3}; do # try 3 times if upload fail
+        response=$(curl -X POST -F "album=$album_id" -F "image=$i" -H "Authorization: Bearer $token" https://api.imgur.com/3/image.xml 2> /dev/null)
+        
+        if [ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]; then # success
+            if $print_url; then
+                link=$(echo $response | sed -E 's/.*<link>(.*)<\/link>.*/\1/')
+                echo $link
+            else
+                upload_num=$(( $upload_num+1 ))
+                echo -ne "$upload_num/$num_img is done\r"
+            fi
+            break
+        else # other error code
+            if [[ $try == 3 ]]; then # fail at third try
+                err_code=$(echo $response | sed -E 's/.*status="(.*)".*/\1/g')
+                err_msg=$(echo $response | sed -E 's/.*<error>(.*)<\/error>.*/\1/')
+                if ! $print_url; then
+                    echo "" # to eliminate "\r"
+                fi
+                echo "Error:" $err_code $err_msg >&2
+                echo $i >&2
+            fi
+            continue
         fi
-        echo "Error:" $err_code $err_msg >&2
-        echo $i >&2
-    fi
+    done
 done
