@@ -7,9 +7,10 @@ client_id="516a14230cc31d8"
 client_secret="5bde3ac197c579bb8fc3fadc54e7466d8cad05c3"
 
 function usage {
-    echo "Usage: $(basename $0) [-hn] list [album_title]" >&2
+    echo "Usage: $(basename $0) [-hnu] list [album_title]" >&2
     echo "  -h  show this message"
     echo "  -n  urls in the list are direct image links"
+    echo "  -u  print imgur urls"
     echo "  album_title can be either a new album title or an existing ablum url" >&2
     echo "  If no given album_title, it will output url directly" >&2
     exit 0
@@ -17,8 +18,9 @@ function usage {
 
 # defalut value
 parsing=true
+print_url=false
 
-while getopts ":hn" options; do
+while getopts ":hnu" options; do
     case $options in
         h)
         usage
@@ -26,6 +28,8 @@ while getopts ":hn" options; do
         n)
         parsing=false
         ;;
+        u)
+        print_url=true
         \?)
         usage
         ;;
@@ -120,15 +124,24 @@ fi
 
 # upload image urls to the album
 echo "Uploading images from urls..." >&2
+
+upload_num=0
 for i in $img_url; do
     response=$(curl -X POST -F "album=$album_id" -F "image=$i" -H "Authorization: Bearer $token" https://api.imgur.com/3/image.xml 2> /dev/null)
     
     if [ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]; then # success
-        link=$(echo $response | sed -E 's/.*<link>(.*)<\/link>.*/\1/')
-        echo $link
+        if $print_url; then
+            link=$(echo $response | sed -E 's/.*<link>(.*)<\/link>.*/\1/')
+            echo $link
+        else
+            upload_num=$(( $upload_num+1 ))
+            echo -ne "$upload_num/$num_img is done\r"
     else # other error code
         err_code=$(echo $response | sed -E 's/.*status="(.*)".*/\1/g')
         err_msg=$(echo $response | sed -E 's/.*<error>(.*)<\/error>.*/\1/')
+        if ! $print_url; then
+            echo "" # to eliminate "\r"
+        fi
         echo "Error:" $err_code $err_msg >&2
         echo $i >&2
     fi
