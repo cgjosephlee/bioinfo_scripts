@@ -8,9 +8,9 @@ client_secret="5bde3ac197c579bb8fc3fadc54e7466d8cad05c3"
 
 function usage {
     echo "Usage: $(basename $0) [-hnu] list [album_title]" >&2
-    echo "  -h  show this message"
-    echo "  -n  urls in the list are direct image links"
-    echo "  -u  print imgur urls"
+    echo "  -h  show this message" >&2
+    echo "  -n  urls in the list are direct image links" >&2
+    echo "  -u  print imgur urls" >&2
     echo "  album_title can be either a new album title or an existing ablum url" >&2
     echo "  If no given album_title, it will output url directly" >&2
     exit 0
@@ -30,6 +30,7 @@ while getopts ":hnu" options; do
         ;;
         u)
         print_url=true
+        ;;
         \?)
         usage
         ;;
@@ -43,8 +44,8 @@ album_title=$2
 if [ $# == 0 ]; then
     usage
 elif [ ! -s $list ]; then
-    echo "No list sepcified!"
-    echo ""
+    echo "No list sepcified!" >&2
+    echo "" >&2
     usage
 fi
 
@@ -136,20 +137,19 @@ for i in $img_url; do
                 echo $link
             else
                 upload_num=$(( $upload_num+1 ))
-                echo -ne "$upload_num/$num_img is done\r"
+                echo -ne "$upload_num/$num_img are processed\r" >&2
             fi
             break
         else # other error code
             if [[ $try == 3 ]]; then # fail at third try
                 err_code=$(echo $response | sed -E 's/.*status="(.*)".*/\1/g')
                 err_msg=$(echo $response | sed -E 's/.*<error>(.*)<\/error>.*/\1/')
-                if ! $print_url; then
-                    echo "" # to eliminate "\r"
-                fi
-                echo "Error:" $err_code $err_msg >&2
+                echo -e "\nError:" $err_code $err_msg >&2
                 echo $i >&2
             fi
             continue
         fi
     done
 done
+
+echo -e "\nFinished!" >&2
