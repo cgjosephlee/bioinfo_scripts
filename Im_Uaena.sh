@@ -5,14 +5,18 @@
 user_name="cgjosephlee"
 client_id="516a14230cc31d8"
 client_secret="5bde3ac197c579bb8fc3fadc54e7466d8cad05c3"
+token_path="/Users/josephlee" # "~" not supported
+# token_path="~"
 
 function usage {
-    echo "Usage: $(basename $0) [-hnu] list [album_title]" >&2
+    echo "Usage: $(basename $0) [-hnu] list [album_title/url]" >&2
     echo "  -h  show this message" >&2
     echo "  -n  urls in the list are direct image links" >&2
-    echo "  -u  print imgur urls" >&2
-    echo "  album_title can be either a new album title or an existing ablum url" >&2
-    echo "  If no given album_title, it will output url directly" >&2
+    echo "  -u  print imgur urls to stdout" >&2
+    echo "  NOTE:" >&2
+    echo "  ONLY works with tistory bolgs!" >&2
+    echo "  album_title/url can be either a new album title or an existing ablum url" >&2
+    echo "  If no given album_title, the script uploads as non-ablum images" >&2
     exit 0
 }
 
@@ -43,10 +47,6 @@ album_title=$2
 
 if [ $# == 0 ]; then
     usage
-elif [ ! -s $list ]; then
-    echo "No list sepcified!" >&2
-    echo "" >&2
-    usage
 fi
 
 if $parsing; then
@@ -57,7 +57,7 @@ if $parsing; then
     # fetch the image url from the source code
     img_url=$(echo $web_content | grep -oh 'http://cfile\d*.uf.tistory.com/image/\w*' | uniq | sed 's/image/original/g')
 else
-    echo "Assume urls in list are image links, no parsing performed..." >&2
+    echo "Assume urls in the list are direct image links, no parsing performed..." >&2
     img_url=$(cat $list)
 fi
 
@@ -67,9 +67,8 @@ echo "Found $num_img images..." >&2
 # check album_title
 re="http://imgur.com/a/([a-zA-Z0-9]{5})"
 if [ ! "$album_title" ]; then
-    echo "No album name sepcified, output url directly..." >&2
-    echo $img_url | tr " " "\n"
-    exit 0
+    album_title=""
+    create_album=false
 elif [[ $album_title =~ $re ]]; then
     create_album=false
     album_id=${BASH_REMATCH[1]}
@@ -78,15 +77,15 @@ else
 fi
 
 # get old token
-if [ ! -s ${user_name}.token ]; then
+if [[ ! -s "${token_path}/${user_name}.token" ]]; then
     echo "Token file not found or broken!" >&2
     exit 1
 else
-    token=$(tail -n1 ${user_name}.token | sed -E 's/.*<access_token>(.*)<\/access_token>.*/\1/')
+    token=$(tail -n1 ${token_path}/${user_name}.token | sed -E 's/.*<access_token>(.*)<\/access_token>.*/\1/')
 fi
 
 # check if token expired
-if [ -n $token ]; then
+if [[ -n $token ]]; then
     # use "get settings" function to check if token expired
     response=$(curl -X GET -H "Authorization: Bearer $token" https://api.imgur.com/3/account/me/settings.xml 2> /dev/null)
 
@@ -107,11 +106,11 @@ fi
 if $token_expire; then
     echo "Refreshing token..." >&2
     # get old refresh token
-    refresh_token=$(tail -n1 ${user_name}.token | sed -E 's/.*<refresh_token>(.*)<\/refresh_token>.*/\1/')
+    refresh_token=$(tail -n1 ${token_path}/${user_name}.token | sed -E 's/.*<refresh_token>(.*)<\/refresh_token>.*/\1/')
     # gain new token and write to file
-    curl -X POST -F "refresh_token=$refresh_token" -F "client_id=$client_id" -F "client_secret=$client_secret" -F "grant_type=refresh_token" https://api.imgur.com/oauth2/token.xml > ${user_name}.token 2> /dev/null
+    curl -X POST -F "refresh_token=$refresh_token" -F "client_id=$client_id" -F "client_secret=$client_secret" -F "grant_type=refresh_token" https://api.imgur.com/oauth2/token.xml > ${token_path}/${user_name}.token 2> /dev/null
     # get new token from token file
-    token=$(tail -n1 ${user_name}.token | sed -E 's/.*<access_token>(.*)<\/access_token>.*/\1/')
+    token=$(tail -n1 ${token_path}/${user_name}.token | sed -E 's/.*<access_token>(.*)<\/access_token>.*/\1/')
 fi
 
 # create an album
@@ -119,8 +118,10 @@ if $create_album; then
     echo "Creating new album..." >&2
     response=$(curl -X POST -H "Authorization: Bearer $token" -F "title=$album_title" https://api.imgur.com/3/album.xml 2> /dev/null)
     album_id=$(echo $response | sed -E 's/.*<id>(.*)<\/id>.*/\1/')
+elif [[ -n $album_id ]]; then
+    echo "Upload to an existing album..." >&2
 else
-    echo "Upload to existing album..." >&2
+    echo "Upload as non-ablum..."
 fi
 
 # upload image urls to the album
