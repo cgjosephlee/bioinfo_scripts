@@ -6,7 +6,6 @@ user_name="cgjosephlee"
 client_id="516a14230cc31d8"
 client_secret="5bde3ac197c579bb8fc3fadc54e7466d8cad05c3"
 token_path="/Users/josephlee" # "~" not supported
-# token_path="~"
 
 function usage {
     echo "Usage: $(basename $0) [-hnu] list [album_title/url]" >&2
