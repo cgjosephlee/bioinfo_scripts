@@ -13,7 +13,7 @@ function usage {
     echo "  -n  urls in the list are direct image links" >&2
     echo "  -u  print imgur urls to stdout" >&2
     echo "  NOTE:" >&2
-    echo "  ONLY works with tistory bolgs!" >&2
+    echo "  ONLY works with tistory blogs!" >&2
     echo "  album_title/url can be either a new album title or an existing ablum url" >&2
     echo "  If no given album_title, the script uploads as non-ablum images" >&2
     exit 0
