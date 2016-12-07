@@ -15,11 +15,11 @@ function usage {
     echo "  NOTE:" >&2
     echo "  ONLY works with tistory blogs!" >&2
     echo "  album_title/url can be either a new album title or an existing ablum url" >&2
-    echo "  If no given album_title, the script uploads as non-ablum images" >&2
+    echo "  If no given album_title, the script uploads as non-album images" >&2
     exit 0
 }
 
-# defalut value
+# default value
 parsing=true
 print_url=false
 
@@ -65,7 +65,7 @@ echo "Found $num_img images..." >&2
 
 # check album_title
 re="http://imgur.com/a/([a-zA-Z0-9]{5})"
-if [ ! "$album_title" ]; then
+if [[ ! "$album_title" ]]; then
     album_title=""
     create_album=false
 elif [[ $album_title =~ $re ]]; then
@@ -88,10 +88,10 @@ if [[ -n $token ]]; then
     # use "get settings" function to check if token expired
     response=$(curl -X GET -H "Authorization: Bearer $token" https://api.imgur.com/3/account/me/settings.xml 2> /dev/null)
 
-    if [ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 403 ]; then # old token expired
+    if [[ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 403 ]]; then # old token expired
         token_expire=true
         echo "Token expired, need to refresh token" >&2
-    elif [ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]; then # success
+    elif [[ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]]; then # success
         token_expire=false
     else # other error code
         err_code=$(echo $response | sed -E 's/.*status="(.*)".*/\1/g')
@@ -131,7 +131,7 @@ for i in $img_url; do
     for try in {1..3}; do # try 3 times if upload fail
         response=$(curl -X POST -F "album=$album_id" -F "image=$i" -H "Authorization: Bearer $token" https://api.imgur.com/3/image.xml 2> /dev/null)
         
-        if [ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]; then # success
+        if [[ $(echo $response | sed -E 's/.*status="(.*)".*/\1/g') == 200 ]]; then # success
             if $print_url; then
                 link=$(echo $response | sed -E 's/.*<link>(.*)<\/link>.*/\1/')
                 echo $link
