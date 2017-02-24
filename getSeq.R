@@ -1,4 +1,4 @@
-# extract sequences with specified IDs from a fasta file
+# extract sequences from a fasta file
 # Hsinhan Lee, 2017
 
 # Usuage
