@@ -3,7 +3,7 @@
 
 # Usuage
 # 0. copy this script to where the fasta file at
-# 1. open this script with RStudio (must)
+# 1. open this script with RStudio (must, test in v1.0.136)
 # 2. edit the following parameters
 #    in_fa: your fasta file (supposing they are in the same directory)
 #    ID   : sequence title
@@ -24,7 +24,7 @@ if (!require("Biostrings", character.only = TRUE))
   if(!require("Biostrings", character.only = TRUE)) stop("Package not found")
 }
 
-# edit by your favor if your are smart
+# edit by your favor if you are smart
 out_fa <- "sub_seq.fasta"
 path <- dirname(rstudioapi::getActiveDocumentContext()$path) # where the script at
 
