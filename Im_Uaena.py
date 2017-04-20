@@ -137,25 +137,36 @@ def upload_img(img_list, album_id, n):
         config = {}
     uploaded_img = []
     num = n
+    limit = False
     for url in img_list[n-1:]:
-        try:
-            img = client.upload_from_url(url, config=config, anon=False)
-            # cost 10 credicts
-            uploaded_img.append(img['link'])
-            # print('\r{}/{}'.format(n, len(img_list)), end='\r')
-            sys.stdout.write('\r{}/{}'.format(num, len(img_list)))
-            sys.stdout.flush()
-            num += 1
-        except ImgurClientError as e:
-            print('Error {}: {}'.format(e.status_code, e.error_message))
-        except ImgurClientRateLimitError:
-            # to show the remaining waitng time of current IP
-            r = requests.post("https://api.imgur.com/3/image.json",
-                              headers={'Authorization': 'Bearer ' +
-                                       client.auth.current_access_token},
-                              data={'album': album_id,
-                                    'image': url})
-            print(r.json()['data']['error'])
+        for attempt in range(3):
+            try:
+                img = client.upload_from_url(url, config=config, anon=False)
+                # cost 10 credicts
+                uploaded_img.append(img['link'])
+                # print('\r{}/{}'.format(n, len(img_list)), end='\r')
+                sys.stdout.write('\r{}/{}'.format(num, len(img_list)))
+                sys.stdout.flush()
+                num += 1
+            except ImgurClientError as e:
+                print('Error {}: {}'.format(e.status_code, e.error_message))
+            except ImgurClientRateLimitError:
+                # to show the remaining waitng time of current IP
+                r = requests.post("https://api.imgur.com/3/image.json",
+                                  headers={'Authorization': 'Bearer ' +
+                                           client.auth.current_access_token},
+                                  data={'album': album_id,
+                                        'image': url})
+                print(r.json()['data']['error'])
+                limit = True
+                break
+            else:
+                break
+        else:
+            print("Attempts is exceeded, maybe try later. ({}/{})".format(num,
+                  len(img_list)))
+            limit = True
+        if limit:
             break
     return uploaded_img
 
