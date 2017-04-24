@@ -84,7 +84,7 @@ def write_auth():
     if acc_token != client.auth.current_access_token:
         token_json = {
                 'user_name': user_name,
-                'client_id ': client.client_id,
+                'client_id': client.client_id,
                 'client_secret': client.client_secret,
                 'access_token': client.auth.current_access_token,
                 'refresh_token': client.auth.refresh_token
