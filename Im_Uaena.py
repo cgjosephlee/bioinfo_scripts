@@ -35,7 +35,7 @@ blacklist_path = "~/blacklist.txt"
 def parse_arg():
     parser = argparse.ArgumentParser(
             description='Get image urls from tistory fancam blogs, and '
-                        'upload to imgur')
+                        'upload to imgur.')
 #            usage='{} url_list [album_title/url]'.format(sys.argv[0]))
     parser.add_argument('url_list', type=unicode,
                         help='List of tistory blog urls')
@@ -136,20 +136,20 @@ def upload_img(img_list, album_id, n):
     else:
         config = {}
     uploaded_img = []
-    num = n
     limit = False
-    for url in img_list[n-1:]:
+    for url in img_list[n:]:
         for attempt in range(3):
             try:
                 img = client.upload_from_url(url, config=config, anon=False)
                 # cost 10 credicts
                 uploaded_img.append(img['link'])
                 # print('\r{}/{}'.format(n, len(img_list)), end='\r')
-                sys.stdout.write('\r{}/{}'.format(num, len(img_list)))
+                sys.stdout.write('\r{}/{}'.format(n, len(img_list)))
                 sys.stdout.flush()
-                num += 1
+                n += 1
             except ImgurClientError as e:
-                print('Error {}: {}'.format(e.status_code, e.error_message))
+                print('\nError {}: {}. (Attempt {})'.format(e.status_code,
+                      e.error_message, attempt+1))
             except ImgurClientRateLimitError:
                 # to show the remaining waitng time of current IP
                 r = requests.post("https://api.imgur.com/3/image.json",
@@ -157,17 +157,19 @@ def upload_img(img_list, album_id, n):
                                            client.auth.current_access_token},
                                   data={'album': album_id,
                                         'image': url})
-                print(r.json()['data']['error'])
+                print("\n"+r.json()['data']['error']['message'])
                 limit = True
                 break
             else:
                 break
         else:
-            print("Attempts is exceeded, maybe try later. ({}/{})".format(num,
+            print("\nAttempts is exceeded, maybe try later. ({}/{})".format(n,
                   len(img_list)))
             limit = True
         if limit:
             break
+        else:
+            print("\nUpload finished!")
     return uploaded_img
 
 
@@ -218,5 +220,3 @@ else:
         for i in uploaded_img:
             print(i)
     write_auth()
-
-print("Done!")
