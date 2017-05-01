@@ -51,7 +51,7 @@ def parse_arg():
                              'image links')
     parser.add_argument('-u', required=False, action='store_true',
                         help='Print imgur urls when finish uploading')
-    parser.add_argument('-n', metavar="NUM", default='1', type=int,
+    parser.add_argument('-n', metavar="NUM", default='0', type=int,
                         help='Ignore several images from head')
     if len(sys.argv) == 1:
         parser.print_help()
@@ -144,7 +144,7 @@ def upload_img(img_list, album_id, n):
                 # cost 10 credicts
                 uploaded_img.append(img['link'])
                 # print('\r{}/{}'.format(n, len(img_list)), end='\r')
-                sys.stdout.write('\r{}/{}'.format(n, len(img_list)))
+                sys.stdout.write('\r{}/{}'.format(n+1, len(img_list)))
                 sys.stdout.flush()
                 n += 1
             except ImgurClientError as e:
@@ -160,16 +160,16 @@ def upload_img(img_list, album_id, n):
                 print("\n"+r.json()['data']['error']['message'])
                 limit = True
                 break
-            else:
+            else:  # try clause completes normally
                 break
-        else:
+        else:  # executes when the loop attempts 3 times
             print("\nAttempts is exceeded, maybe try later. ({}/{})".format(n,
                   len(img_list)))
             limit = True
         if limit:
             break
-        else:
-            print("\nUpload finished!")
+    else:  # executes when the loop completes normally
+        print("\nUpload finished!")
     return uploaded_img
 
 
