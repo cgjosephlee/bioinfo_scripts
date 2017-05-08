@@ -20,6 +20,7 @@ from imgurpython import ImgurClient
 from imgurpython.helpers.error import ImgurClientError
 from imgurpython.helpers.error import ImgurClientRateLimitError
 import json
+import datetime
 # from pprint import pprint
 
 # test arguments
@@ -148,8 +149,9 @@ def upload_img(img_list, album_id, n):
                 sys.stdout.flush()
                 n += 1
             except ImgurClientError as e:
-                print('\nError {}: {}. (Attempt {})'.format(e.status_code,
-                      e.error_message, attempt+1))
+                print('\r{}/{} Error {}: {}. (attempt {})'.format(n+1,
+                      len(img_list), e.status_code, e.error_message['message'],
+                      attempt+1))
             except ImgurClientRateLimitError:
                 # to show the remaining waitng time of current IP
                 r = requests.post("https://api.imgur.com/3/image.json",
@@ -157,13 +159,17 @@ def upload_img(img_list, album_id, n):
                                            client.auth.current_access_token},
                                   data={'album': album_id,
                                         'image': url})
-                print("\n"+r.json()['data']['error']['message'])
+                err_msg = r.json()['data']['error']['message']
+                minute = int(re.search(r'wait (\d+) more', err_msg).group(1))
+                tm = datetime.datetime.now()
+                tm = tm + datetime.timedelta(minutes=minute)
+                print("\n" + err_msg + " ({})".format(tm.strftime("%I:%M %p")))
                 limit = True
                 break
             else:  # try clause completes normally
                 break
         else:  # executes when the loop attempts 3 times
-            print("\nAttempts is exceeded, maybe try later. ({}/{})".format(n,
+            print("\r{}/{} Attempts is exceeded, maybe try later.".format(n+1,
                   len(img_list)))
             limit = True
         if limit:
