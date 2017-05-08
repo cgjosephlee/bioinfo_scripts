@@ -96,9 +96,12 @@ def write_auth():
 
 def get_img_link(url_list):
     headers = {"User-Agent": "curl"}
-    re_tistory = r"http://cfile\d{1,2}.uf.tistory.com/image/(\w*)"
+    re_tistory = r"http://cfile\d{1,2}.uf.tistory.com/[io]\w+/(\w+)"
     img_url = []
     for url in url_list:
+        if re.match(re_tistory, url):
+            print('Error: the url is direct image link, please use "-l".')
+            sys.exit(1)
         web = requests.get(url, headers=headers)
         soup = BeautifulSoup(web.text, "html5lib")
         for link in soup.find_all("img"):
@@ -106,7 +109,12 @@ def get_img_link(url_list):
             if re.match(re_tistory, raw_img) and \
                re.match(re_tistory, raw_img).group(1) not in blacklist:
                 img_url.append(re.sub("image", "original", raw_img))
-    return img_url
+    try:
+        img_url[0]
+        return img_url
+    except IndexError:
+        print("Error: no image url was found.")
+        sys.exit(1)
 
 
 def get_album_id(arg):
@@ -196,7 +204,7 @@ try:
             line = line.strip()
             url_list.append(line)
 except IOError:
-    print("Error: can\'t find or read url list")
+    print("Error: can\'t find or read url list.")
     sys.exit(1)
 
 # read pre-defined blacklist
@@ -207,7 +215,7 @@ try:
             line = line.strip()
             blacklist.append(line)
 except IOError:
-    print("No blacklist was imported")
+    print("No blacklist was imported.")
 
 # main
 if args.l:
