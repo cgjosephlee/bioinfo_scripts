@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Im_Uaena.py
@@ -8,7 +8,7 @@ author: JLee
 date: 2017.4
 """
 
-from __future__ import print_function
+# from __future__ import print_function
 import sys
 import os
 import argparse
@@ -38,9 +38,9 @@ def parse_arg():
             description='Get image urls from tistory fancam blogs, and '
                         'upload to imgur.')
 #            usage='{} url_list [album_title/url]'.format(sys.argv[0]))
-    parser.add_argument('url_list', type=unicode,
+    parser.add_argument('url_list', type=str,
                         help='List of tistory blog urls')
-    parser.add_argument('album', type=unicode, metavar='album_title/url',
+    parser.add_argument('album', type=str, metavar='album_title/url',
                         nargs='?', default='',
                         help='Can be either an album title '
                              'or an existing ablum url, upload as non-album '
