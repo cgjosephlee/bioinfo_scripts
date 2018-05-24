@@ -11,10 +11,14 @@ def parse_arg():
     parser = argparse.ArgumentParser(description='generate cds and protein sequences from gff and fasta')
     parser.add_argument('-f', metavar='fasta', type=str, required=True, help='fasta file')
     parser.add_argument('-g', metavar='gff', type=str, required=True, help='gff3 file')
-    parser.add_argument('-n', metavar='genetic table', default=4,
-                        help='genetic table for translation (4, for mito)')
-    parser.add_argument('-p', metavar='prefix', default='out',
-                        help='output file name prefix (out)')
+    parser.add_argument('-o', metavar='output prefix', default='',
+                        help='output filename prefix (basename of fasta)')
+    parser.add_argument('-p', metavar='title prefix', default='',
+                        help='prefix for sequence titles (None)')
+    parser.add_argument('--field', metavar='field', default='Name',
+                        help='feature field for naming sequences (ID, Name, product, etc.) (Name)')
+    parser.add_argument('--table', metavar='code', type=int, default=4,
+                        help='genetic code table for translation (4, for mito)')
     # parser.add_argument('-t', action='store_true',
     #                     help='output translated protein sequences')
     return parser.parse_args()
@@ -42,19 +46,19 @@ def parse_gff(file):
     with open(file) as GFF:
         for line in GFF.readlines():
             line = line.strip()
-            if not line.startswith('#'):
+            if not line.startswith('#') and not line == '':
                 line = line.split('\t')
                 qualifiers = get_qualifier(line[8])
                 if line[2] == 'gene':
                     n += 1
                     gene_lt.append({})
                     gene_lt[n]['chr'] = line[0]
+                    gene_lt[n]['strand'] = get_strand(line[6])
                     gene_lt[n]['ID'] = qualifiers['ID']
                     gene_lt[n]['Name'] = qualifiers['Name']
-                    gene_lt[n]['strand'] = get_strand(line[6])
                 elif line[2] in ['mRNA', 'tRNA', 'rRNA']:
                     gene_lt[n]['type'] = line[2]
-                    gene_lt[n]['product'] = qualifiers.get('product', gene_lt[n]['ID'])
+                    gene_lt[n]['product'] = qualifiers.get('product', '')
                 elif line[2] == 'exon':
                     exon_co = [int(line[3]) - 1, int(line[4])]
                     gene_lt[n].setdefault('location', []).append(exon_co)
@@ -67,16 +71,29 @@ def parse_fa(file):
     return FA_dict
 
 
+# handle arguments
 args = parse_arg()
 in_seq_file = args.f
 in_gff_file = args.g
-prefix = args.p
-table = args.n
+table = args.table
+field = args.field
+if args.o == '':
+    prefix = '.'.join(in_seq_file.split('.')[0:-1])
+else:
+    prefix = args.o
+if args.p == '':
+    title_prefix = args.p
+else:
+    title_prefix = args.p + '_'
 
+# input files
 FA_dict = parse_fa(in_seq_file)
 genes = parse_gff(in_gff_file)
-genes = filter(lambda x: not re.match(r'trn|orf', x['ID']), genes)
 
+# filter (temporary)
+genes = filter(lambda x: not re.match(r'trn[A-Z]|tRNA|orf', x[field]), genes)
+
+# main
 with open(prefix + '.cds.fa', 'w') as nt_out,\
         open(prefix + '.protein.faa', 'w') as prot_out:
     for rec in genes:
@@ -86,14 +103,14 @@ with open(prefix + '.cds.fa', 'w') as nt_out,\
             for start, end in rec['location']:
                 nt_seq += FA_dict[rec['chr']].seq[start: end]
         except KeyError:
-            print('WARNING: gene has no exon ({})'.format(rec['ID']), file=sys.stderr)
+            print('WARNING: gene has no exon ({})'.format(rec[field]), file=sys.stderr)
             continue
         if rec['strand'] == 0:
             nt_seq = nt_seq.reverse_complement()
-        print('>{}\n{}'.format(rec['ID'], nt_seq), file=nt_out)
+        print('>{}{}\n{}'.format(title_prefix, rec[field], nt_seq), file=nt_out)
         if rec['type'] == 'mRNA':
             if len(nt_seq) % 3 != 0:
-                print('WARNING: cds length cannot divided by 3 ({})'.format(rec['ID']), file=sys.stderr)
+                print('WARNING: cds length cannot divided by 3 ({})'.format(rec[field]), file=sys.stderr)
                 continue
             prot_seq = nt_seq.translate(table=table, to_stop=True)
-            print('>{}\n{}'.format(rec['ID'], prot_seq), file=prot_out)
+            print('>{}{}\n{}'.format(title_prefix, rec[field], prot_seq), file=prot_out)
