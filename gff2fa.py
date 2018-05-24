@@ -12,14 +12,18 @@ def parse_arg():
     parser.add_argument('-f', metavar='fasta', type=str, required=True, help='fasta file')
     parser.add_argument('-g', metavar='gff', type=str, required=True, help='gff3 file')
     parser.add_argument('-o', metavar='output prefix', default='',
-                        help='output filename prefix (basename of fasta)')
+                        help='prefix for output filename (basename of fasta)')
     parser.add_argument('-p', metavar='title prefix', default='',
                         help='prefix for sequence titles (None)')
     parser.add_argument('--field', metavar='field', default='Name',
                         help='feature field for naming sequences (ID, Name, product, etc.) (Name)')
     parser.add_argument('--table', metavar='code', type=int, default=4,
                         help='genetic code table for translation (4, for mito)')
-    # parser.add_argument('-t', action='store_true',
+    parser.add_argument('--CDS', action='store_true',
+                        help='[debug] for some exceptions')
+    parser.add_argument('--no_filter', action='store_true',
+                        help='[debug] disable filter')
+    # parser.add_argument('--aa', action='store_true',
     #                     help='output translated protein sequences')
     return parser.parse_args()
 
@@ -40,7 +44,7 @@ def get_qualifier(s):
     return q
 
 
-def parse_gff(file):
+def parse_gff(file, CDS_mode):
     n = -1
     gene_lt = []
     with open(file) as GFF:
@@ -60,6 +64,12 @@ def parse_gff(file):
                     gene_lt[n]['type'] = line[2]
                     gene_lt[n]['product'] = qualifiers.get('product', '')
                 elif line[2] == 'exon':
+                    exon_co = [int(line[3]) - 1, int(line[4])]
+                    gene_lt[n].setdefault('location', []).append(exon_co)
+                # for some exceptions that genes have no mRNA and exon featurs, but only CDS
+                elif line[2] == 'CDS' and CDS_mode:
+                    gene_lt[n]['type'] = 'mRNA'
+                    gene_lt[n]['product'] = qualifiers.get('product', '')
                     exon_co = [int(line[3]) - 1, int(line[4])]
                     gene_lt[n].setdefault('location', []).append(exon_co)
     return gene_lt
@@ -88,10 +98,11 @@ else:
 
 # input files
 FA_dict = parse_fa(in_seq_file)
-genes = parse_gff(in_gff_file)
+genes = parse_gff(in_gff_file, args.CDS)
 
 # filter (temporary)
-genes = filter(lambda x: not re.match(r'trn[A-Z]|tRNA|orf', x[field]), genes)
+if not args.no_filter:
+    genes = filter(lambda x: not re.match(r'trn[A-Z]|tRNA|orf', x[field]), genes)
 
 # main
 with open(prefix + '.cds.fa', 'w') as nt_out,\
