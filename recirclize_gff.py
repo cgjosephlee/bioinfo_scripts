@@ -5,7 +5,7 @@ import argparse
 
 
 def parse_arg():
-    parser = argparse.ArgumentParser(description='restate a gff from a specific coordinate')
+    parser = argparse.ArgumentParser(description='recirclize a gff from a specific coordinate')
     parser.add_argument('gff', type=str, help='gff file')
     parser.add_argument('-n', metavar='POS', type=int, default=1,
                         help='start from this position')
@@ -13,9 +13,9 @@ def parse_arg():
                         help='reverse complement')
     parser.add_argument('-l', metavar="LEN", type=int, default=float('Inf'),  # required=True,
                         help='sequence full length (default: Inf)')
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
+    # if len(sys.argv) == 1:
+    #     parser.print_help()
+    #     sys.exit(1)
     return parser.parse_args()
 
 # main

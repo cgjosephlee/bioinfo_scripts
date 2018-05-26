@@ -6,15 +6,15 @@ from Bio import SeqIO
 
 
 def parse_arg():
-    parser = argparse.ArgumentParser(description='restate a circular sequence from a specific coordinate\n(for single sequence only)')
+    parser = argparse.ArgumentParser(description='recirclize a circular sequence from a specific coordinate (for single sequence only)')
     parser.add_argument('fasta', type=str, help='fasta file')
     parser.add_argument('-n', metavar='POS', type=int, default=1,
                         help='start from this position')
     parser.add_argument('-r', action='store_true',
                         help='reverse complement the sequence')
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
+    # if len(sys.argv) == 1:
+    #     parser.print_help()
+    #     sys.exit(1)
     return parser.parse_args()
 
 # main
