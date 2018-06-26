@@ -106,7 +106,7 @@ if not args.no_filter:
 
 # main
 with open(prefix + '.cds.fa', 'w') as nt_out,\
-        open(prefix + '.protein.faa', 'w') as prot_out:
+        open(prefix + '.protein.fa', 'w') as prot_out:
     for rec in genes:
         nt_seq = ''
         prot_seq = ''
