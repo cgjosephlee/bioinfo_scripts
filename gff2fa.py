@@ -23,8 +23,6 @@ def parse_arg():
                         help='[debug] for some exceptions')
     parser.add_argument('--no_filter', action='store_true',
                         help='[debug] disable filter')
-    # parser.add_argument('--aa', action='store_true',
-    #                     help='output translated protein sequences')
     return parser.parse_args()
 
 
@@ -123,5 +121,7 @@ with open(prefix + '.cds.fa', 'w') as nt_out,\
             if len(nt_seq) % 3 != 0:
                 print('WARNING: cds length cannot divided by 3 ({})'.format(rec[field]), file=sys.stderr)
                 continue
-            prot_seq = nt_seq.translate(table=table, to_stop=True)
+            prot_seq = nt_seq.translate(table=table, to_stop=True, cds=True)
+            if len(prot_seq) != len(nt_seq) / 3 - 1:
+                print('WARNING: cds sequence is not fully translated ({})'.format(rec[field]), file=sys.stderr)
             print('>{}{}\n{}'.format(title_prefix, rec[field], prot_seq), file=prot_out)
