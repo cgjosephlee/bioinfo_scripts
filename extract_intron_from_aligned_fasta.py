@@ -12,6 +12,7 @@ def parse_args():
     parser.add_argument('fasta', help='aligned fasta file')
     parser.add_argument('-l', action='store_true', help='output length information')
     parser.add_argument('-n', type=int, default=0, help='#seq as reference (0)')
+    parser.add_argument('-p', type=str, default='out', help='output prefix (out)')
     return parser.parse_args()
 
 def get_boundaries():
@@ -34,27 +35,35 @@ def get_boundaries():
     return boundaries, is_exon
 
 # ordered by original sequence order
-def ordered_by_input():
-    for rec in FA_aln:
-        if rec.id != refID:
-            for j in range(len(is_exon)):
-                if is_exon[j]:
-                    pass
-                elif not is_exon[j]:
-                    n = (j+1)/2
-                    print('>{}_intron{}\n{}'.format(rec.id, int(n), rec.seq[boundaries[j]:boundaries[j+1]].ungap('-')))
+# def ordered_by_input():
+#     for rec in FA_aln:
+#         if rec.id != refID:
+#             for j in range(len(is_exon)):
+#                 if is_exon[j]:
+#                     pass
+#                 elif not is_exon[j]:
+#                     n = (j+1)/2
+#                     print('>{}_intron{}\n{}'.format(rec.id, int(n), rec.seq[boundaries[j]:boundaries[j+1]].ungap('-')))
 
 # ordered by intron number
 def ordered_by_feature():
     for j in range(len(is_exon)):
         if is_exon[j]:
-            pass
-        elif not is_exon[j]:
             local_aln = FA_aln[:,boundaries[j]:boundaries[j+1]]
+            n = int((j+2)/2)
+            fo = open('{}_exon{:02d}.fa'.format(prefix, n), 'w')
             for rec in local_aln:
                 if rec.id != refID:
-                    n = (j+1)/2
-                    print('>{}_intron{}\n{}'.format(rec.id, int(n), rec.seq.ungap('-')))
+                    print('>{}_exon{:02d}\n{}'.format(rec.id, n, rec.seq.ungap('-')), file=fo)
+            fo.close()
+        elif not is_exon[j]:
+            local_aln = FA_aln[:,boundaries[j]:boundaries[j+1]]
+            n = int((j+1)/2)
+            fo = open('{}_intron{:02d}.fa'.format(prefix, n), 'w')
+            for rec in local_aln:
+                if rec.id != refID:
+                    print('>{}_intron{:02d}\n{}'.format(rec.id, n, rec.seq.ungap('-')), file=fo)
+            fo.close()
 
 def print_length():
     for j in range(len(is_exon)):
@@ -68,6 +77,7 @@ def print_length():
 args = parse_args()
 inFA = args.fasta
 refNUM = args.n # -1 for last
+prefix = args.p
 
 FA_aln = AlignIO.read(inFA, 'fasta')
 

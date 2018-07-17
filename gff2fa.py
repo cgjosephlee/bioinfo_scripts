@@ -4,6 +4,7 @@ import sys
 import argparse
 import re
 from Bio import SeqIO
+from Bio.Data.CodonTable import TranslationError
 # from pprint import pprint
 
 
@@ -118,10 +119,8 @@ with open(prefix + '.cds.fa', 'w') as nt_out,\
             nt_seq = nt_seq.reverse_complement()
         print('>{}{}\n{}'.format(title_prefix, rec[field], nt_seq), file=nt_out)
         if rec['type'] == 'mRNA':
-            if len(nt_seq) % 3 != 0:
-                print('WARNING: cds length cannot divided by 3 ({})'.format(rec[field]), file=sys.stderr)
-                continue
-            prot_seq = nt_seq.translate(table=table, to_stop=True, cds=True)
-            if len(prot_seq) != len(nt_seq) / 3 - 1:
-                print('WARNING: cds sequence is not fully translated ({})'.format(rec[field]), file=sys.stderr)
-            print('>{}{}\n{}'.format(title_prefix, rec[field], prot_seq), file=prot_out)
+            try:
+                prot_seq = nt_seq.translate(table=table, to_stop=True, cds=True)
+                print('>{}{}\n{}'.format(title_prefix, rec[field], prot_seq), file=prot_out)
+            except TranslationError as e:
+                print('WARNING: {} ({})'.format(e, rec[field]), file=sys.stderr)
