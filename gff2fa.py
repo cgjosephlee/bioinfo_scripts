@@ -7,6 +7,11 @@ from Bio import SeqIO
 from Bio.Data.CodonTable import TranslationError
 # from pprint import pprint
 
+# This script assumes a single progeny mRNA feture for a gene
+#
+# --CDS mode
+# gene features have no parental mRNA/exon, but only CDS (e.g. AF402141.1)
+
 
 def parse_arg():
     parser = argparse.ArgumentParser(description='generate cds and protein sequences from gff and fasta')
@@ -21,8 +26,8 @@ def parse_arg():
     parser.add_argument('--table', metavar='code', type=int, default=4,
                         help='genetic code table for translation (4, for mito)')
     parser.add_argument('--CDS', action='store_true',
-                        help='[debug] for some exceptions')
-    parser.add_argument('--no_filter', action='store_true',
+                        help='[debug] for some exceptions (see descriptions in script)')
+    parser.add_argument('--no-filter', action='store_true',
                         help='[debug] disable filter')
     return parser.parse_args()
 
@@ -57,8 +62,8 @@ def parse_gff(file, CDS_mode):
                     gene_lt.append({})
                     gene_lt[n]['chr'] = line[0]
                     gene_lt[n]['strand'] = get_strand(line[6])
-                    gene_lt[n]['ID'] = qualifiers['ID']
-                    gene_lt[n]['Name'] = qualifiers['Name']
+                    gene_lt[n]['ID'] = qualifiers.get('ID', '')
+                    gene_lt[n]['Name'] = qualifiers.get('Name', '')
                 elif line[2] in ['mRNA', 'tRNA', 'rRNA']:
                     gene_lt[n]['type'] = line[2]
                     gene_lt[n]['product'] = qualifiers.get('product', '')
