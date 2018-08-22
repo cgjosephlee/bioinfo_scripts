@@ -106,7 +106,7 @@ genes = parse_gff(in_gff_file, args.CDS)
 
 # filter (temporary)
 if not args.no_filter:
-    genes = filter(lambda x: not re.match(r'trn[A-Z]|tRNA|orf', x[field]), genes)
+    genes = filter(lambda x: not re.match(r'trn[A-Z]|tRNA|orf|ORF', x[field]), genes)
 
 # main
 with open(prefix + '.cds.fa', 'w') as nt_out,\
