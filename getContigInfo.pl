@@ -67,7 +67,7 @@ my $N50 = 0;
 my $N50_ctg = 0;
 my $last_ctg;
 for (my $i = 0; $i <= $#length_order; $i++) {
-    $length_order[$i] < $minLength and $last_ctg = $i-1 and last;
+    $length_order[$i] <= $minLength and $last_ctg = $i-1 and last;
     $N90 += $length_order[$i];
     if ($N90 > ($total_read_length * 0.9) and $N90_ctg == 0) {
         $N90_ctg = $i;
@@ -101,7 +101,7 @@ print " > $minLength bp: $contig_count\n";
 print "( >   100 bp: $hundred)\n";
 print "( >  1000 bp: $thousand)\n";
 print "( >  5000 bp: $five_thousand)\n";
-print "( > 10000 bp: $ten_thousand)\n\n";
+print "( > 10000 bp: $ten_thousand)\n";
 
 # --------------------------------------------------------------------------------------------------
 sub open_maybe_compressed {
