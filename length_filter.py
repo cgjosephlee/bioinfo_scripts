@@ -1,34 +1,25 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
-Length filter for fasta files
-
-author: Hsin-han Lee
-date: Sep, 2015
+author: Hsinhan Lee
+date:   Sep, 2015
+update: Aug, 2018
 """
 
 import sys
 from Bio import SeqIO
 
 usage = """
-Discription: Discard the sequences shorter than the cutoff
+Discard the sequences shorter than the cutoff
 Usage: length_filter.py <in.fasta> <length cutoff>
 Output to stdout
 """
 
-
-def Usage():
-    print usage
-    sys.exit()
-
 if len(sys.argv) == 1:
-    Usage()
+    print(usage)
+    sys.exit(1)
 
-IN1 = open(sys.argv[1], "r")
-
-for seq in SeqIO.parse(IN1, "fasta"):
-    if len(seq) > int(sys.argv[2]):
-        print ">" + seq.id
-        print seq.seq
-
-IN1.close()
+with open(sys.argv[1], "r") as IN:
+    for seq in SeqIO.parse(IN, "fasta"):
+        if len(seq) > int(sys.argv[2]):
+            print('>{}\n{}'.format(seq.id, seq.seq))

@@ -7,10 +7,10 @@ from Bio import SeqIO
 from Bio.Data.CodonTable import TranslationError
 # from pprint import pprint
 
-# This script assumes a single progeny mRNA feture for a gene
+# This script assumes a single progeny mRNA feature for a gene
 #
 # --CDS mode
-# gene features have no parental mRNA/exon, but only CDS (e.g. AF402141.1)
+# gene features have no sibling mRNA/exon, but only CDS (e.g. AF402141.1)
 
 
 def parse_arg():
