@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import argparse
 from Bio import SeqIO
 
@@ -17,6 +18,11 @@ FIN = args.fasta
 n = args.n
 recs = [x for x in SeqIO.parse(FIN, 'fasta')]
 
-FOUT = open(args.fasta, 'w') if args.i else sys.stdout
+if args.i:
+    os.system('cp {0} {0}.bak'.format(args.fasta))
+    print('backup file {}.bak created'.format(args.fasta), file=sys.stderr)
+    FOUT = open(args.fasta, 'w')
+else:
+    FOUT = sys.stdout
 SeqIO.FastaIO.FastaWriter(FOUT, wrap=n).write_file(recs)
 FOUT.close()
