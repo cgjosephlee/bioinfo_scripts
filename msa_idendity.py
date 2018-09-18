@@ -17,7 +17,7 @@ def usage():
     return parser.parse_args()
 
 def pair_id(s1, s2):
-    # ignore gap in both seq
+    # trun N into gap, and ignore base consisting only gap in both seq
     # global: consider gaps in either one seq as mismatch
     # local: ingore all gaps
     s1_len = len(s1.seq.ungap('-'))
@@ -66,15 +66,16 @@ loc_mean = sum(loc_val) / len(loc_val)
 
 if args.tg or args.tl:
     df = pd.DataFrame()
-    for out in outs:
-        if args.tg:
+    if args.tg:
+        for out in outs:
             df.at[out[1], out[0]] = out[5]
-            s = 'global'
-            i = glb_mean
-        elif args.tl:
+        s = 'global'
+        i = glb_mean
+    elif args.tl:
+        for out in outs:
             df.at[out[1], out[0]] = out[7]
-            s = 'local'
-            i = loc_mean
+        s = 'local'
+        i = loc_mean
     print('# number of sequences: {}\n'
           '# alignment length: {}\n'
           '# mean of {} identity: {:.4f}'.format(seq_num, aln_len, s, i))
