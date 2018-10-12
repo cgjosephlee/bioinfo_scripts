@@ -11,21 +11,21 @@ import pandas as pd
 import subprocess as sp
 
 def usage():
-    parser = argparse.ArgumentParser(description='generate pairwise sequence identity from fasta (nt only)')
+    parser = argparse.ArgumentParser(description='generate pairwise sequence identity from fasta (nt only, require muscle)')
     parser.add_argument('fasta', help='fasta')
     parser.add_argument('-aln', action='store_true', help='input is aligned fasta')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-tg', action='store_true', help='output wide table for global identities (default: long table)')
-    group.add_argument('-tl', action='store_true', help='output wide table for identities (default: long table)')
+    group.add_argument('-tl', action='store_true', help='output wide table for local identities (default: long table)')
     return parser.parse_args()
 
 def pair_identity(s1, s2):
     # convert N into gap, and ignore positions consisting only gaps in both sequences
     # global: consider gap in either one of sequences as mismatch
     # local: ignore all gaps
+    aln_len = len(s1)
     s1_len = len(s1.seq.ungap('-'))
     s2_len = len(s2.seq.ungap('-'))
-    aln_len = len(s1)
     glb_len = aln_len
     loc_len = aln_len
     match = 0
@@ -51,6 +51,7 @@ def pairwise_alignment(s1, s2):
     proc = sp.Popen(['muscle', '-quiet'], stdin=sp.PIPE, stdout=sp.PIPE, universal_newlines=True)
     SeqIO.write(records, proc.stdin, 'fasta')
     outs = io.StringIO(proc.communicate()[0])
+    # assuming the order of muscle outputs would not change while only 2 sequences
     aln_fa = AlignIO.read(outs, 'fasta')
     out = pair_identity(aln_fa[0], aln_fa[1])
     return out
@@ -63,6 +64,8 @@ if not args.aln:
     FA = [x for x in SeqIO.parse(IN, 'fasta')]
     seq_num = len(FA)
 
+    total_runs = int(seq_num * (seq_num - 1) / 2)
+    finished_runs = 0
     outs = []
     glb_val = []
     loc_val = []
@@ -73,6 +76,9 @@ if not args.aln:
             if o[0] != o[1]:
                 glb_val.append(o[5])
                 loc_val.append(o[7])
+                finished_runs += 1
+                print('running... {}/{} finished.'.format(finished_runs, total_runs), flush=True, end='\r', file=sys.stderr)
+    print('', file=sys.stderr)
 else:
     FA = AlignIO.read(IN, 'fasta')
     seq_num = len(FA)
