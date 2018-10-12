@@ -3,23 +3,26 @@
 ### for nucleotide only! ###
 
 import sys
-import re
-from Bio import AlignIO
+import io
+# import re
+from Bio import AlignIO, SeqIO
 import argparse
 import pandas as pd
+import subprocess as sp
 
 def usage():
-    parser = argparse.ArgumentParser(description='generate pairwise sequence identity from multiple sequence alignment fasta (default: long table)')
-    parser.add_argument('fasta', help='MSA fasta')
+    parser = argparse.ArgumentParser(description='generate pairwise sequence identity from fasta (nt only)')
+    parser.add_argument('fasta', help='fasta')
+    parser.add_argument('-aln', action='store_true', help='input is aligned fasta')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-tg', action='store_true', help='output wide table for global identities')
-    group.add_argument('-tl', action='store_true', help='output wide table for identities')
+    group.add_argument('-tg', action='store_true', help='output wide table for global identities (default: long table)')
+    group.add_argument('-tl', action='store_true', help='output wide table for identities (default: long table)')
     return parser.parse_args()
 
-def pair_id(s1, s2):
-    # trun N into gap, and ignore base consisting only gap in both seq
-    # global: consider gaps in either one seq as mismatch
-    # local: ingore all gaps
+def pair_identity(s1, s2):
+    # convert N into gap, and ignore positions consisting only gaps in both sequences
+    # global: consider gap in either one of sequences as mismatch
+    # local: ignore all gaps
     s1_len = len(s1.seq.ungap('-'))
     s2_len = len(s2.seq.ungap('-'))
     aln_len = len(s1)
@@ -37,33 +40,58 @@ def pair_id(s1, s2):
             loc_len -= 1
         elif i == j:
             match += 1
-    #glb_id = '{:.4f}'.format(match/glb_len)
-    #loc_id = '{:.4f}'.format(match/loc_len)
-    glb_id = round(match/glb_len, 4)
-    loc_id = round(match/loc_len, 4)
+    # glb_id = '{:.4f}'.format(match/glb_len)
+    # loc_id = '{:.4f}'.format(match/loc_len)
+    glb_id = round(match / glb_len, 4)
+    loc_id = round(match / loc_len, 4)
     return [s1.id, s2.id, s1_len, s2_len, glb_len, glb_id, loc_len, loc_id]
+
+def pairwise_alignment(s1, s2):
+    records = [s1, s2]
+    proc = sp.Popen(['muscle', '-quiet'], stdin=sp.PIPE, stdout=sp.PIPE, universal_newlines=True)
+    SeqIO.write(records, proc.stdin, 'fasta')
+    outs = io.StringIO(proc.communicate()[0])
+    aln_fa = AlignIO.read(outs, 'fasta')
+    out = pair_identity(aln_fa[0], aln_fa[1])
+    return out
 
 args = usage()
 IN = args.fasta
-FA = AlignIO.read(IN, 'fasta')
 
-aln_len = FA.get_alignment_length()
-seq_num = len(FA)
+# main process
+if not args.aln:
+    FA = [x for x in SeqIO.parse(IN, 'fasta')]
+    seq_num = len(FA)
 
-outs = []
-glb_val = []
-loc_val = []
-for n1 in range(seq_num):
-    for n2 in range(n1, seq_num):
-        o = pair_id(FA[n1], FA[n2])
-        outs.append(o)
-        if o[0] != o[1]:
-            glb_val.append(o[5])
-            loc_val.append(o[7])
+    outs = []
+    glb_val = []
+    loc_val = []
+    for n1 in range(seq_num):
+        for n2 in range(n1, seq_num):
+            o = pairwise_alignment(FA[n1], FA[n2])
+            outs.append(o)
+            if o[0] != o[1]:
+                glb_val.append(o[5])
+                loc_val.append(o[7])
+else:
+    FA = AlignIO.read(IN, 'fasta')
+    seq_num = len(FA)
+
+    outs = []
+    glb_val = []
+    loc_val = []
+    for n1 in range(seq_num):
+        for n2 in range(n1, seq_num):
+            o = pair_identity(FA[n1], FA[n2])
+            outs.append(o)
+            if o[0] != o[1]:
+                glb_val.append(o[5])
+                loc_val.append(o[7])
 
 glb_mean = sum(glb_val) / len(glb_val)
 loc_mean = sum(loc_val) / len(loc_val)
 
+# output results
 if args.tg or args.tl:
     df = pd.DataFrame()
     if args.tg:
@@ -77,15 +105,13 @@ if args.tg or args.tl:
         s = 'local'
         i = loc_mean
     print('# number of sequences: {}\n'
-          '# alignment length: {}\n'
-          '# mean of {} identity: {:.4f}'.format(seq_num, aln_len, s, i))
+          '# mean of {} identity: {:.4f}'.format(seq_num, s, i))
     df.to_csv(sys.stdout, sep='\t')
 else:
     print('# number of sequences: {}\n'
-          '# alignment length: {}\n'
           '# mean of global identity: {:.4f}\n'
           '# mean of local identity: {:.4f}\n'
-          '# seq1\tseq2\tlen1\tlen2\tglb_len\tglb_id\tloc_len\tloc_id'.format(seq_num, aln_len, glb_mean, loc_mean))
+          '# seq1\tseq2\tlen1\tlen2\tglb_len\tglb_id\tloc_len\tloc_id'.format(seq_num, glb_mean, loc_mean))
     for out in outs:
         if out[0] != out[1]:
             print('\t'.join(str(x) for x in out))
