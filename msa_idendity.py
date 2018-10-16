@@ -9,11 +9,14 @@ from Bio import AlignIO, SeqIO
 import argparse
 import pandas as pd
 import subprocess as sp
+from threading import Thread
+from queue import Queue
 
 def usage():
     parser = argparse.ArgumentParser(description='generate pairwise sequence identity from fasta (nt only, require muscle)')
     parser.add_argument('fasta', help='fasta')
     parser.add_argument('-aln', action='store_true', help='input is aligned fasta')
+    parser.add_argument('-t', type=int, default=1, help='threads for alignment (default: 1)')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-tg', action='store_true', help='output wide table for global identities (default: long table)')
     group.add_argument('-tl', action='store_true', help='output wide table for local identities (default: long table)')
@@ -56,44 +59,51 @@ def pairwise_alignment(s1, s2):
     out = pair_identity(aln_fa[0], aln_fa[1])
     return out
 
+def worker():
+    while not queue.empty():
+        s1, s2, n = queue.get()
+        outs[n] = pairwise_alignment(s1, s2)
+
 args = usage()
 IN = args.fasta
+NUM_THREADS = args.t
 
 # main process
 if not args.aln:
     FA = [x for x in SeqIO.parse(IN, 'fasta')]
     seq_num = len(FA)
 
-    total_runs = int(seq_num * (seq_num - 1) / 2)
-    finished_runs = 0
-    outs = []
-    glb_val = []
-    loc_val = []
+    job_n = 0
+    queue = Queue()
     for n1 in range(seq_num):
         for n2 in range(n1, seq_num):
-            o = pairwise_alignment(FA[n1], FA[n2])
-            outs.append(o)
-            if o[0] != o[1]:
-                glb_val.append(o[5])
-                loc_val.append(o[7])
-                finished_runs += 1
-                print('running... {}/{} finished.'.format(finished_runs, total_runs), flush=True, end='\r', file=sys.stderr)
-    print('', file=sys.stderr)
+            queue.put([FA[n1], FA[n2], job_n])
+            job_n += 1
+
+    total_runs = queue.qsize()
+    outs = [None] * queue.qsize()
+    threads = [Thread(target=worker) for x in range(NUM_THREADS)]
+    print('open {} threads, running {} jobs...'.format(NUM_THREADS, total_runs), file=sys.stderr)
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+    print('finish!', file=sys.stderr)
 else:
     FA = AlignIO.read(IN, 'fasta')
     seq_num = len(FA)
 
     outs = []
-    glb_val = []
-    loc_val = []
     for n1 in range(seq_num):
         for n2 in range(n1, seq_num):
-            o = pair_identity(FA[n1], FA[n2])
-            outs.append(o)
-            if o[0] != o[1]:
-                glb_val.append(o[5])
-                loc_val.append(o[7])
+            outs.append(pair_identity(FA[n1], FA[n2]))
 
+glb_val = []
+loc_val = []
+for o in outs:
+    if o[0] != o[1]:
+        glb_val.append(o[5])
+        loc_val.append(o[7])
 glb_mean = sum(glb_val) / len(glb_val)
 loc_mean = sum(loc_val) / len(loc_val)
 
