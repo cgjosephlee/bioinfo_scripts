@@ -23,30 +23,39 @@ def usage():
     return parser.parse_args()
 
 def pair_identity(s1, s2):
-    # convert N into gap, and ignore positions consisting only gaps in both sequences
-    # global: consider gap in either one of sequences as mismatch
-    # local: ignore all gaps
+    '''
+    convert N into gap, and ignore positions consisting only gaps in both sequences
+    global: consider gap in either one of sequences as mismatch
+    local: ignore all gaps
+    '''
     aln_len = len(s1)
     s1_len = len(s1.seq.ungap('-'))
     s2_len = len(s2.seq.ungap('-'))
     glb_len = aln_len
     loc_len = aln_len
     match = 0
-    for pos in range(aln_len):
-        i, j = str(s1[pos]).upper(), str(s2[pos]).upper()
-        if i == 'N': i = '-'
-        if j == 'N': j = '-'
-        if i == j == '-':
-            glb_len -= 1
-            loc_len -= 1
-        elif i == '-' or j == '-':
-            loc_len -= 1
-        elif i == j:
-            match += 1
-    # glb_id = '{:.4f}'.format(match/glb_len)
-    # loc_id = '{:.4f}'.format(match/loc_len)
-    glb_id = round(match / glb_len, 4)
-    loc_id = round(match / loc_len, 4)
+    try:
+        for pos in range(aln_len):
+            i, j = str(s1[pos]).upper(), str(s2[pos]).upper()
+            if i == 'N': i = '-'
+            if j == 'N': j = '-'
+            if i == j == '-':
+                glb_len -= 1
+                loc_len -= 1
+            elif i == '-' or j == '-':
+                loc_len -= 1
+            elif i == j:
+                match += 1
+        # glb_id = '{:.4f}'.format(match/glb_len)
+        # loc_id = '{:.4f}'.format(match/loc_len)
+        glb_id = round(match / glb_len, 4)
+        loc_id = round(match / loc_len, 4)
+    except ZeroDivisionError as e:
+        # if s1_len == 0:
+        #     print('Sequence "{}" is empty or contains on gaps.'.format(s1.id), file=sys.stderr)
+        # elif s2_len == 0:
+        #     print('Sequence "{}" is empty or contains on gaps.'.format(s2.id), file=sys.stderr)
+        glb_id = loc_id = float(0)
     return [s1.id, s2.id, s1_len, s2_len, glb_len, glb_id, loc_len, loc_id]
 
 def pairwise_alignment(s1, s2):
