@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import argparse
 from Bio import SeqIO
 
@@ -12,9 +11,6 @@ def parse_arg():
                         help='start from this position')
     parser.add_argument('-r', action='store_true',
                         help='reverse complement the sequence')
-    # if len(sys.argv) == 1:
-    #     parser.print_help()
-    #     sys.exit(1)
     return parser.parse_args()
 
 # main
@@ -25,7 +21,7 @@ with open(args.fasta, "r") as f:
 
 if not args.r:
     title = FA.id + " [start:%d]" % (args.n)
-    seq = FA.seq[args.n-1:] + FA.seq[:args.n-1]
+    seq = FA.seq[args.n - 1:] + FA.seq[:args.n - 1]
 else:
     title = FA.id + " [start:%d,reverse_complement]" % (args.n)
     seq = FA.seq[args.n:] + FA.seq[:args.n]
