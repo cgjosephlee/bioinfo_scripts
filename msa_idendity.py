@@ -22,6 +22,16 @@ def usage():
     group.add_argument('-tl', action='store_true', help='output wide table for local (gapless) identities (default: long table)')
     return parser.parse_args()
 
+def check_muscle():
+    proc = sp.Popen(['muscle', '-version'], stdout=sp.PIPE, stderr=sp.PIPE)
+    out, err = proc.communicate()
+    if proc.returncode == 0:
+        out = out.decode().split()
+        print('MUSCLE {} is available.'.format(out[1]), file=sys.stderr)
+    else:
+        print('MUSCLE is not available in your path!', file=sys.stderr)
+        sys.exit(1)
+
 def pair_identity(s1, s2):
     '''
     convert N into gap, and ignore positions consisting only gaps in both sequences
@@ -68,11 +78,6 @@ def pairwise_alignment(s1, s2):
     out = pair_identity(aln_fa[0], aln_fa[1])
     return out
 
-def worker():
-    while not queue.empty():
-        s1, s2, n = queue.get()
-        outs[n] = pairwise_alignment(s1, s2)
-
 def main():
     args = usage()
     IN = args.fasta
@@ -80,8 +85,16 @@ def main():
 
     # main process
     if not args.aln:
+        check_muscle()
+
         FA = [x for x in SeqIO.parse(IN, 'fasta')]
         seq_num = len(FA)
+
+        # multi-threading
+        def worker():
+            while not queue.empty():
+                s1, s2, n = queue.get()
+                outs[n] = pairwise_alignment(s1, s2)
 
         job_n = 0
         queue = Queue()
@@ -93,12 +106,12 @@ def main():
         total_runs = queue.qsize()
         outs = [None] * queue.qsize()
         threads = [Thread(target=worker) for x in range(NUM_THREADS)]
-        print('open {} threads, running {} jobs...'.format(NUM_THREADS, total_runs), file=sys.stderr)
+        print('Open {} threads, running {} jobs...'.format(NUM_THREADS, total_runs), file=sys.stderr)
         for th in threads:
             th.start()
         for th in threads:
             th.join()
-        print('finish!', file=sys.stderr)
+        print('Finish!', file=sys.stderr)
     else:
         FA = AlignIO.read(IN, 'fasta')
         seq_num = len(FA)
