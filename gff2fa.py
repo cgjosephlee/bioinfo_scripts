@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
+'''
+This script assumes a single progeny mRNA feature for a gene
+
+--CDS mode
+gene features have no sibling mRNA/exon, but only CDS (e.g. AF402141.1)
+'''
+
 import sys
 import argparse
 import re
 from Bio import SeqIO
 from Bio.Data.CodonTable import TranslationError
 # from pprint import pprint
-
-# This script assumes a single progeny mRNA feature for a gene
-#
-# --CDS mode
-# gene features have no sibling mRNA/exon, but only CDS (e.g. AF402141.1)
 
 
 def parse_arg():
@@ -92,7 +94,7 @@ in_gff_file = args.g
 table = args.table
 field = args.field
 if args.o == '':
-    prefix = '.'.join(in_seq_file.split('.')[0:-1])
+    prefix = in_seq_file.rstrip('.fa|.fasta')
 else:
     prefix = args.o
 if args.p == '':
