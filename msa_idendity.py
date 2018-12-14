@@ -88,19 +88,21 @@ def pair_identity(s1, s2, type='nuc'):
         s1_len = len(s1.seq.ungap('-'))
         s2_len = len(s2.seq.ungap('-'))
 
+        s1.seq = s1.seq.upper()
+        s2.seq = s2.seq.upper()
         match = 0
         for pos in range(aln_len):
-            i, j = str(s1[pos]).upper(), str(s2[pos]).upper()
+            i, j = s1[pos], s2[pos]
             if type == 'nuc':
-                i = i.replace('N', '-')
-                j = j.replace('N', '-')
-            if i == j == '-':
-                glb_len -= 1
-                loc_len -= 1
-            elif i == '-' or j == '-':
-                loc_len -= 1
-            elif i == j:
-                match += 1
+                # i = i.replace('N', '-')
+                # j = j.replace('N', '-')
+                if i == j == '-':
+                    glb_len -= 1
+                    loc_len -= 1
+                elif i == '-' or j == '-':
+                    loc_len -= 1
+                elif i == j:
+                    match += 1
         # glb_id = '{:.4f}'.format(match/glb_len)
         # loc_id = '{:.4f}'.format(match/loc_len)
         glb_id = round(match / glb_len, 4)
