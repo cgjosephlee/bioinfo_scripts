@@ -77,7 +77,9 @@ def check_program(prog):
 
 def pair_identity(s1, s2, type='nuc'):
     '''
-    convert N into gap, and ignore positions consisting only gaps in both sequences
+    Input sequences as strings!
+    Ignore positions consisting only gaps in both sequences.
+    N to N would be a mismatch.
     global: consider gap in either one of sequences as mismatch
     local: ignore all gaps (gapless)
     '''
@@ -85,35 +87,27 @@ def pair_identity(s1, s2, type='nuc'):
         if len(s1) != len(s2):
             raise ValueError('Unequal length in sequences!')
         aln_len = glb_len = loc_len = len(s1)
-        s1_len = len(s1.seq.ungap('-'))
-        s2_len = len(s2.seq.ungap('-'))
+        s1_len = len(s1.replace('-', ''))
+        s2_len = len(s2.replace('-', ''))
 
-        s1.seq = s1.seq.upper()
-        s2.seq = s2.seq.upper()
+        s1 = s1.upper()
+        s2 = s2.upper()
         match = 0
-        for pos in range(aln_len):
-            i, j = s1[pos], s2[pos]
-            if type == 'nuc':
-                # i = i.replace('N', '-')
-                # j = j.replace('N', '-')
+        if type == 'nuc':
+            for pos in range(aln_len):
+                i, j = s1[pos], s2[pos]
                 if i == j == '-':
                     glb_len -= 1
                     loc_len -= 1
                 elif i == '-' or j == '-':
                     loc_len -= 1
-                elif i == j:
+                elif i == j and i != 'N':
                     match += 1
-        # glb_id = '{:.4f}'.format(match/glb_len)
-        # loc_id = '{:.4f}'.format(match/loc_len)
         glb_id = round(match / glb_len, 4)
         loc_id = round(match / loc_len, 4)
     except ZeroDivisionError as e:
-        # if s1_len == 0:
-        #     print('Sequence "{}" is empty or contains on gaps.'.format(s1.id), file=sys.stderr)
-        # elif s2_len == 0:
-        #     print('Sequence "{}" is empty or contains on gaps.'.format(s2.id), file=sys.stderr)
         glb_id = loc_id = float(0)
-    return [s1.id, s2.id, s1_len, s2_len, glb_len, glb_id, loc_len, loc_id]
+    return [s1_len, s2_len, glb_len, glb_id, loc_len, loc_id]
 
 def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
     records = [s1, s2]
@@ -127,7 +121,7 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
             if proc.returncode == 0:
                 # assuming the order of muscle outputs would not change while only 2 sequences
                 aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = pair_identity(aln_fa[0], aln_fa[1])
+                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0]), str(aln_fa[1]))
             else:
                 raise ValueError
         elif prog == 'mafft':
@@ -142,7 +136,7 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
             sp.call(['rm', '-f', tmp_fa])
             if proc.returncode == 0:
                 aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = pair_identity(aln_fa[0], aln_fa[1])
+                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0]), str(aln_fa[1]))
             else:
                 raise ValueError
         return out
@@ -208,7 +202,7 @@ def main():
         outs = []
         for n1 in range(seq_num):
             for n2 in range(n1, seq_num):
-                outs.append(pair_identity(FA[n1], FA[n2]))
+                outs.append([FA[n1].id, FA[n2].id] + pair_identity(str(FA[n1].seq), str(FA[n2].seq)))
                 queueing -= 1
                 print('{} jobs are queueing...'.format(queueing), end='\r', file=sys.stderr)
         print('', file=sys.stderr)
@@ -273,7 +267,9 @@ def main():
               '# mean of {} identity: {:.4f}'.format(seq_num, s, i), file=args.OUT)
         df.to_csv(args.OUT, sep='\t')
 
-    args.OUT.close()
+    # avoide to terminate ipython console
+    if args.OUT != sys.stdout:
+        args.OUT.close()
 
 if __name__ == '__main__':
     main()
