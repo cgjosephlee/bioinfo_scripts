@@ -11,17 +11,17 @@ TODO:
 '''
 
 import sys
+import os
 import io
 import argparse
 import re
-import string
-import random
 from Bio import AlignIO, SeqIO
 import pandas as pd
 import subprocess as sp
 from threading import Thread
 from queue import Queue
 import time
+import tempfile
 
 def handle_args():
     class AddOptAction(argparse.Action):
@@ -75,9 +75,9 @@ def check_program(prog):
     elif prog == 'mafft':
         check_mafft()
 
-def pair_identity(s1, s2, type='nuc'):
+def pairwise_identity(s1, s2, type='nuc'):
     '''
-    Input sequences as strings!
+    s1 and s2 are strings! Calculate identity only.
     Ignore positions consisting only gaps in both sequences.
     N to N would be a mismatch.
     global: consider gap in either one of sequences as mismatch
@@ -110,6 +110,9 @@ def pair_identity(s1, s2, type='nuc'):
     return [s1_len, s2_len, glb_len, glb_id, loc_len, loc_id]
 
 def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
+    '''
+    s1 and s2 are SeqRrecord objects. Perform alignment and calculate identity.
+    '''
     records = [s1, s2]
     try:
         if prog == 'muscle':
@@ -121,22 +124,22 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
             if proc.returncode == 0:
                 # assuming the order of muscle outputs would not change while only 2 sequences
                 aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
+                out = [aln_fa[0].id, aln_fa[1].id] + pairwise_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
             else:
                 raise ValueError
         elif prog == 'mafft':
             cmd = ['mafft', '--quiet'] + opts
-            # mafft don't support stdin, so write a temporary fasta to /tmp
-            tmp_fa = '/tmp/' + id_generator() + '.fa'
+            # mafft don't support stdin, so write a temporary fasta
+            tmp_fa = tempfile.mkstemp(suffix='.fa', text=True)[1]
             SeqIO.write(records, tmp_fa, 'fasta')
             cmd.append(tmp_fa)
             proc = sp.Popen(cmd, stdout=sp.PIPE, universal_newlines=True)
             proc_out, proc_err = proc.communicate()
             proc_out = io.StringIO(proc_out)
-            sp.call(['rm', '-f', tmp_fa])
+            os.remove(tmp_fa)
             if proc.returncode == 0:
                 aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
+                out = [aln_fa[0].id, aln_fa[1].id] + pairwise_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
             else:
                 raise ValueError
         return out
@@ -151,9 +154,6 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
         print('Sequence 1: {}\n'
               'Sequence 2: {}'.format(s1.id, s2.id), file=sys.stderr)
         sys.exit(1)
-
-def id_generator(size=6, chars=string.ascii_lowercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
 
 def main():
     args = handle_args()
@@ -202,7 +202,7 @@ def main():
         outs = []
         for n1 in range(seq_num):
             for n2 in range(n1, seq_num):
-                outs.append([FA[n1].id, FA[n2].id] + pair_identity(str(FA[n1].seq), str(FA[n2].seq)))
+                outs.append([FA[n1].id, FA[n2].id] + pairwise_identity(str(FA[n1].seq), str(FA[n2].seq)))
                 queueing -= 1
                 print('{} jobs are queueing...'.format(queueing), end='\r', file=sys.stderr)
         print('', file=sys.stderr)
