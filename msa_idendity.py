@@ -121,7 +121,7 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
             if proc.returncode == 0:
                 # assuming the order of muscle outputs would not change while only 2 sequences
                 aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0]), str(aln_fa[1]))
+                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
             else:
                 raise ValueError
         elif prog == 'mafft':
@@ -136,7 +136,7 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
             sp.call(['rm', '-f', tmp_fa])
             if proc.returncode == 0:
                 aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0]), str(aln_fa[1]))
+                out = [aln_fa[0].id, aln_fa[1].id] + pair_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
             else:
                 raise ValueError
         return out
