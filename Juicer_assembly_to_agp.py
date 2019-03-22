@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+'''
+After run `run-asm-pipeline-post-review.sh`, generate agp file according to new fasta and `*.review.assembly`.
+'''
+
 import sys
 import re
 
