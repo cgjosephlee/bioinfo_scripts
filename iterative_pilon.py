@@ -12,6 +12,7 @@ Require:
 
 import sys
 import os
+import re
 import argparse
 import subprocess as sp
 
@@ -32,7 +33,7 @@ fq2 = args.fq2
 pilon_jar = args.j
 maxMem = args.m
 if not args.p:
-    prefix = os.path.basename(fa_base).rstrip('.fa|.fasta') + '_pilon'
+    prefix = re.sub('.fa$|.fasta$', '', os.path.basename(fa_base)) + '_pilon'
 else:
     prefix = args.p
 iter_n = args.i
