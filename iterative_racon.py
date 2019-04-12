@@ -48,9 +48,11 @@ for n in range(iter_n):
 
     aln = 'reads{}.paf'.format(n + 1)
     print('Iteration {} start...'.format(n + 1), file=sys.stderr)
-    if not os.path.isfile(aln):
-        sp.run([MINIMAP, '-x', mapper, '-t', threads, fa_in, fq], stdout=aln, stderr='minimap.{}.err'.format(n + 1), check=True)
+    if not os.path.isfile(aln) or os.path.getsize(aln) == 0:
+        with open(aln, 'w') as OUT, open('minimap.{}.err'.format(n + 1), 'w') as ERR:
+            sp.run([MINIMAP, '-x', mapper, '-t', str(threads), fa_in, fq], stdout=OUT, stderr=ERR, check=True)
 
-    sp.run([RACON, '-t', threads, aln, fa_in], stdout=fa_out, stderr='racon.{}.err'.format(n + 1), check=True)
+    with open(fa_out, 'w') as OUT, open('racon.{}.err'.format(n + 1), 'w') as ERR:
+        sp.run([RACON, '-t', str(threads), aln, fa_in], stdout=OUT, stderr=ERR, check=True)
     print('Iteration {} finish!'.format(n + 1), file=sys.stderr)
     fa_out = fa_out + '.fasta'
