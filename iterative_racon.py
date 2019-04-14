@@ -40,10 +40,9 @@ threads = args.t
 fa_out = fa_base
 for n in range(iter_n):
     fa_in = fa_out
-    fa_out = '{}_{}'.format(prefix, n + 1)
-    if os.path.isfile(fa_out + '.fasta') and os.path.getsize(fa_out + '.fasta') > 0:
+    fa_out = '{}_{}'.format(prefix, n + 1) + '.fasta'
+    if os.path.isfile(fa_out) and os.path.getsize(fa_out) > 0:
         print('Found iteration {} result, skip.'.format(n + 1), file=sys.stderr)
-        fa_out = fa_out + '.fasta'
         continue
 
     aln = 'reads{}.paf'.format(n + 1)
@@ -53,6 +52,5 @@ for n in range(iter_n):
             sp.run([MINIMAP, '-x', mapper, '-t', str(threads), fa_in, fq], stdout=OUT, stderr=ERR, check=True)
 
     with open(fa_out, 'w') as OUT, open('racon.{}.err'.format(n + 1), 'w') as ERR:
-        sp.run([RACON, '-t', str(threads), aln, fa_in], stdout=OUT, stderr=ERR, check=True)
+        sp.run([RACON, '-t', str(threads), fq, aln, fa_in], stdout=OUT, stderr=ERR, check=True)
     print('Iteration {} finish!'.format(n + 1), file=sys.stderr)
-    fa_out = fa_out + '.fasta'
