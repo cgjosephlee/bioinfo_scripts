@@ -22,7 +22,7 @@ parser.add_argument('fq1')
 parser.add_argument('fq2')
 parser.add_argument('-j', type=str, help='pilon jar', required=True)
 parser.add_argument('-m', type=int, help='max mem for java in Gb (64)', default=64)
-parser.add_argument('-i', type=int, help='number of iterations (3)', default=3)
+parser.add_argument('-i', type=int, help='number of iterations (5)', default=5)
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
 parser.add_argument('-t', type=int, help='threads (20)', default=20)
 parser.add_argument('--aligner', type=str, help='bwa or smalt (smalt)', default='smalt')
@@ -58,7 +58,7 @@ for n in range(iter_n):
             sp.run('rm {0}.amb {0}.ann {0}.bwt {0}.pac {0}.sa'.format(fa_in), shell=True, check=True)
         elif aligner == 'smalt':
             sp.run('smalt index {0} {0}'.format(fa_in), shell=True, check=True)
-            sp.run('smalt map -n {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True)
+            sp.run('smalt map -n {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True)
             sp.run('rm {0}.sma {0}.smi'.format(fa_in), shell=True, check=True)
         sp.run('samtools index {}.bam'.format(fa_out), shell=True, check=True)
 
