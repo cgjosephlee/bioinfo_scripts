@@ -2,6 +2,9 @@
 '''
 Sort fasta by length.
 No rename. No wrapping or unwrapping.
+
+NOTE:
+A more advanced implementation: http://biopython.org/DIST/docs/tutorial/Tutorial.html#sec:SeqIO-sort
 '''
 
 import sys
@@ -24,4 +27,3 @@ data = sorted(data.items(), key=lambda x: x[1]['length'], reverse=True)
 
 for k, v in data:
     print('>{}\n{}'.format(k, '\n'.join(v['seq'])))
-
