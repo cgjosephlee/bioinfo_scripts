@@ -70,25 +70,18 @@ trf_opt = [str(x) for x in trf_opt]
 trf_out = '{}.{}.dat'.format(in_fa, '.'.join(trf_opt))
 if args.f or not os.path.isfile(trf_out):
     print('Running trf...', file=sys.stderr)
-    cmd = ['trf', in_fa] + trf_opt + ['-h']
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    cmd = ['trf', in_fa] + trf_opt + ['-h', '-ngs']
+    with open(trf_out, 'w') as f:
+        subprocess.run(cmd, stdout=f, stderr=subprocess.DEVNULL, check=True)
 
 # parse trf output
 with open(trf_out) as f:
-    # skip first 8 lines
-    for i in range(8):
-        next(f)
-
-    # main
     FoundInSTART = set()
     FoundInEND = set()
     FoundInMID = set()
     for line in f:
-        if line.startswith('Sequence: '):
-            ctg = line.strip().split()[1]
-            # skip 6 lines
-            for i in range(6):
-                next(f)
+        if line.startswith('@'):
+            ctg = line[1:].strip().split()[0]
         else:
             line = line.strip()
             # skip blank line
