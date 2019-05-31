@@ -74,4 +74,4 @@ for aa3 in aa_3to1.keys():
     aa1 = aa_3to1[aa3]
     dt = sorted(aaUsage[aa1].items(), key=lambda x: x[0])
     for k, v in dt:
-        print('{}\t{}\t{}\t{:.2f}\t{}'.format(aa3, aa1, k, v / aaFreq[aa1], v))
+        print('{}\t{}\t{}\t{:.2%}\t{}'.format(aa3, aa1, k, v / aaFreq[aa1], v))
