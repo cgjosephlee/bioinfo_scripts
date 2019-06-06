@@ -4,7 +4,6 @@
 Calculate pairwise identity of all sequence combinations in the fasta.
 
 NOTE:
-- For protein sequences, straightforward identity was calculated.
 - Muscle v3.8.31 has a bug in aligning long sequences. Upgrade to v3.8.341 or higher to fix this.
 TODO:
 - Support protein sequences.
@@ -15,7 +14,7 @@ import os
 import io
 import argparse
 import re
-from Bio import AlignIO, SeqIO
+from Bio import SeqIO
 import pandas as pd
 import subprocess as sp
 from threading import Thread
@@ -28,20 +27,31 @@ def handle_args():
         def __call__(self, parser, namespace, values, option_string=None):
             values = values.split()
             setattr(namespace, self.dest, values)
-    parser = argparse.ArgumentParser(description='generate pairwise sequence identity from fasta')
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description='''\
+Calculate pairwise sequence identity from alignment file, output in phylip
+distance matrix format.
+
+Use extarnal msa file:
+muscle -in input.fasta -out alignment.fasta
+{prog} -f f alignment.fasta
+
+Use this script to perform pairwise alignment of all sequence combinations:
+{prog} --aligner muscle -o pairwise_alignment.phy input.fasta
+{prog} -f p pairwise_alignment.phy'''.format(prog=os.path.basename(sys.argv[0])))
     parser.add_argument('IN', metavar='fasta', help='fasta file')
-    parser.add_argument('-m', metavar='mode', dest='mode', type=int, choices=[1, 2, 3], default=1,
-                        help='run mode [1: do alignment, 2: input is aligned, 3: parse previous output only] (default: 1)')
-    parser.add_argument('-t', metavar='thread', dest='thread', type=int, default=1,
-                        help='threads for alignment (default: 1)')
-    parser.add_argument('-f', metavar='format', dest='outfmt', type=int, choices=[1, 2, 3], default=1,
-                        help='output format [1: long table, 2: wide table for global identity, 3: wide table for local (gapless) identity] (default: 1)')
-    parser.add_argument('-o', metavar='file', dest='OUT', type=argparse.FileType('w'), default=sys.stdout,
+    parser.add_argument('-f', metavar='FORMAT', type=str, choices=['f', 'p'], default='f',
+                        help='input file format [f: aligned fasta; p: multiple alignments phylip] (default: f)')
+    parser.add_argument('-g', metavar='MODE', type=int, choices=[0, 1, 2], default=0,
+                        help='gap manipulation [0: BLAST identity; 1: gap-excluded identity; 2: gap-compressed identity] (default: 0)')
+    parser.add_argument('-o', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
                         help='output file (default: stdout)')
-    parser.add_argument('--aligner', metavar='prog', choices=['muscle', 'mafft'], default='muscle',
-                        help='alignment program [muscle, mafft] (default: muscle)')
+    parser.add_argument('--aligner', metavar='PROG', choices=['muscle', 'mafft'],
+                        help='if this is given, the script performs pariwise alignment on input file and generate a multiple alignments file in relaxed-phylip format, which can be further proceeded by this script [muscle; mafft]')
+    parser.add_argument('--thread', type=int, default=1,
+                        help='threads for alignment')
     # argparse do not allow value starts with '-', a workaround is to assign equal sign `--opts='--var'`, or add a leadng space `--opts ' --var'`
-    parser.add_argument('--opts', metavar='options', action=AddOptAction, default=[],
+    parser.add_argument('--opts', action=AddOptAction, default=[],
                         help='additional options sent to aligner (space separated list, an equal sign "--opts=" is required)')
     # parser.add_argument('--type', metavar='type', choices=['nuc', 'prot'], default='nuc',
     #                     help='type of input sequences [nuc, prot] (default: nuc)')
@@ -75,201 +85,166 @@ def check_program(prog):
     elif prog == 'mafft':
         check_mafft()
 
-def pairwise_identity(s1, s2, type='nuc'):
+def seq_identity(s1, s2, gap_mode=0):
     '''
-    s1 and s2 are strings! Calculate identity only.
-    Ignore positions consisting only gaps in both sequences.
-    N to N would be a mismatch.
-    global: consider gap in either one of sequences as mismatch
-    local: ignore all gaps (gapless)
+    https://lh3.github.io/2018/11/25/on-the-definition-of-sequence-identity
+    gap_mode=0, BLAST identity, matches over alignment length.
+    gap_mode=1, gap-excluded identity, all gaps are ignored.
+    gap_mode=2, gap-compressed identity, gaps with any length are counted as one difference.
     '''
-    try:
-        if len(s1) != len(s2):
-            raise ValueError('Unequal length in sequences!')
-        aln_len = glb_len = loc_len = len(s1)
-        s1_len = len(s1.replace('-', ''))
-        s2_len = len(s2.replace('-', ''))
+    assert isinstance(s1, str)
+    assert isinstance(s2, str)
+    if len(s1) != len(s2):
+        raise ValueError('Unequal length in sequences!')
 
-        s1 = s1.upper()
-        s2 = s2.upper()
-        match = 0
-        if type == 'nuc':
-            for pos in range(aln_len):
-                i, j = s1[pos], s2[pos]
-                if i == j == '-':
-                    glb_len -= 1
-                    loc_len -= 1
-                elif i == '-' or j == '-':
-                    loc_len -= 1
-                elif i == j and i != 'N':
-                    match += 1
-        glb_id = round(match / glb_len, 4)
-        loc_id = round(match / loc_len, 4)
-    except ZeroDivisionError as e:
-        glb_id = loc_id = float(0)
-    return [s1_len, s2_len, glb_len, glb_id, loc_len, loc_id]
+    s1 = s1.upper()
+    s2 = s2.upper()
+    DNA_CHAR = set('ATCG')
+    GAP_CHAR = '-'
+    Match = 0
+    Mismatch = 0
+    Gap = 0
+    GapCount = 0
+    LastIsGap = False
+
+    for b1, b2 in zip(s1, s2):
+        if b1 in DNA_CHAR and b2 in DNA_CHAR:
+            if b1 == b2:
+                Match += 1
+            elif b1 != b2:
+                Mismatch += 1
+            LastIsGap = False
+        elif b1 == GAP_CHAR or b2 == GAP_CHAR:
+            # ignore column containing only gap
+            if b1 == b2:
+                continue
+            Gap += 1
+            if not LastIsGap:
+                GapCount += 1
+            LastIsGap = True
+        else:
+            # ambiguous bases are counted as mismatch
+            Mismatch += 1
+
+    if gap_mode == 0:
+        return Match / (Match + Mismatch + Gap)
+    elif gap_mode == 1:
+        return Match / (Match + Mismatch)
+    elif gap_mode == 2:
+        return Match / (Match + Mismatch + GapCount)
 
 def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
     '''
-    s1 and s2 are SeqRrecord objects. Perform alignment and calculate identity.
+    s1 and s2 are SeqRrecord objects.
+    Perform alignment and return list of aligned sequences.
     '''
-    records = [s1, s2]
-    try:
-        if prog == 'muscle':
-            cmd = ['muscle', '-quiet'] + opts
-            proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, universal_newlines=True)
-            SeqIO.write(records, proc.stdin, 'fasta')
-            proc_out, proc_err = proc.communicate()
-            proc_out = io.StringIO(proc_out)
-            if proc.returncode == 0:
-                # assuming the order of muscle outputs would not change while only 2 sequences
-                aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = [aln_fa[0].id, aln_fa[1].id] + pairwise_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
-            else:
-                raise ValueError
-        elif prog == 'mafft':
-            cmd = ['mafft', '--quiet'] + opts
-            # mafft don't support stdin, so write a temporary fasta
-            tmp_fa = tempfile.mkstemp(suffix='.fa', text=True)[1]
-            SeqIO.write(records, tmp_fa, 'fasta')
-            cmd.append(tmp_fa)
-            proc = sp.Popen(cmd, stdout=sp.PIPE, universal_newlines=True)
-            proc_out, proc_err = proc.communicate()
-            proc_out = io.StringIO(proc_out)
-            os.remove(tmp_fa)
-            if proc.returncode == 0:
-                aln_fa = AlignIO.read(proc_out, 'fasta')
-                out = [aln_fa[0].id, aln_fa[1].id] + pairwise_identity(str(aln_fa[0].seq), str(aln_fa[1].seq))
-            else:
-                raise ValueError
-        return out
-    except ValueError as e:
-        print(e, file=sys.stderr)
-        print('Sequence 1: {}\n'
-              'Sequence 2: {}'.format(s1.id, s2.id), file=sys.stderr)
-        print(proc_err, file=sys.stderr)
-        sys.exit(1)
-    except UnicodeDecodeError as e:
-        print(e, file=sys.stderr)
-        print('Sequence 1: {}\n'
-              'Sequence 2: {}'.format(s1.id, s2.id), file=sys.stderr)
-        sys.exit(1)
+    if prog == 'muscle':
+        cmd = ['muscle', '-quiet'] + opts
+        proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, universal_newlines=True)
+        proc_out, proc_err = proc.communicate(input='>{}\n{}\n>{}\n{}'.format(s1.id, s1.seq, s2.id, s2.seq))
+        if proc.returncode == 0:
+            return [x for x in SeqIO.parse(io.StringIO(proc_out), 'fasta')]
+        else:
+            raise sp.CalledProcessError(proc.returncode, cmd, proc_err)
+    elif prog == 'mafft':
+        cmd = ['mafft', '--quiet'] + opts
+        # mafft don't support stdin, so write a temporary fasta
+        tmp_fa = tempfile.mkstemp(suffix='.fa', text=True)[1]
+        cmd.append(tmp_fa)
+        with open(tmp_fa, 'w') as f:
+            print('>{}\n{}\n>{}\n{}'.format(s1.id, s1.seq, s2.id, s2.seq), file=f)
+        proc = sp.Popen(cmd, stdout=sp.PIPE, universal_newlines=True)
+        proc_out, proc_err = proc.communicate()
+        os.remove(tmp_fa)
+        if proc.returncode == 0:
+            return [x for x in SeqIO.parse(io.StringIO(proc_out), 'fasta')]
+        else:
+            raise sp.CalledProcessError(proc.returncode, cmd, proc_err)
+
+def pairwise_alignment_through_fasta(fastas, aligner, opts, thread, handle):
+    '''
+    input list of SeqRecord objects
+    output in phylip format
+    '''
+    def worker():
+        while not queue.empty():
+            n1, n2, n = queue.get()
+            outs[n] = pairwise_alignment(fastas[n1], fastas[n2], aligner, opts)
+
+    check_program(aligner)
+
+    # put jobs in queue
+    seq_num = len(fastas)
+    total_jobs = 0
+    queue = Queue()
+    for n1 in range(seq_num):
+        for n2 in range(n1 + 1, seq_num):
+            queue.put([n1, n2, total_jobs])
+            total_jobs += 1
+    outs = [None] * total_jobs
+    # multi-threading
+    threads = [Thread(target=worker) for _ in range(thread)]
+    print('Open {} threads, running {} jobs...'.format(thread, total_jobs), file=sys.stderr)
+    for th in threads:
+        th.start()
+    for th in threads:
+        # th.join()
+        while th.is_alive():
+            print('{} jobs are queueing...'.format(queue.qsize()), end='\r', file=sys.stderr)
+            time.sleep(0.1)
+    print('', file=sys.stderr)
+
+    for s1, s2 in outs:
+        maxLen = len(s2.id) if len(s2.id) > len(s1.id) else len(s1.id)
+        print('2 {}'.format(len(s1.seq)), file=handle)
+        print('{: <{}} {}'.format(s1.id, maxLen, s1.seq), file=handle)
+        print('{: <{}} {}'.format(s2.id, maxLen, s2.seq), file=handle)
+    print('Finish!', file=sys.stderr)
+
+def df_to_phylip_matrix(df, handle):
+    df.sort_index(axis=0, inplace=True)  # row
+    df.sort_index(axis=1, inplace=True)  # column
+    # right padding for index
+    df.reset_index(inplace=True)
+    maxLen = max(len(x) for x in df['index'])
+    df['index'] = df['index'].apply(lambda x: x + ' ' * (maxLen - len(x)))
+    print(df.shape[0], file=handle)  # nrows
+    for row in df.itertuples(index=False):
+        print(' '.join(row), file=handle)
+
+def RelaxedPhylipParser(handle):
+    '''
+    3 lines per unit
+    '''
+    for line in handle:
+        yield [next(handle).strip().split(), next(handle).strip().split()]
 
 def main():
     args = handle_args()
 
-    ### main process ###
-    # do alignment
-    if args.mode == 1:
-        check_program(args.aligner)
-
-        FA = [x for x in SeqIO.parse(args.IN, 'fasta')]
-        seq_num = len(FA)
-
-        # multi-threading
-        def worker():
-            while not queue.empty():
-                s1, s2, n = queue.get()
-                outs[n] = pairwise_alignment(s1, s2, args.aligner, args.opts)
-
-        job_n = 0
-        queue = Queue()
-        for n1 in range(seq_num):
-            for n2 in range(n1, seq_num):
-                queue.put([FA[n1], FA[n2], job_n])
-                job_n += 1
-
-        total_runs = queue.qsize()
-        outs = [None] * queue.qsize()
-        threads = [Thread(target=worker) for x in range(args.thread)]
-        print('Open {} threads, running {} jobs...'.format(args.thread, total_runs), file=sys.stderr)
-        for th in threads:
-            th.start()
-        for th in threads:
-            # th.join()
-            while th.is_alive():
-                queueing = queue.qsize()
-                print('{} jobs are queueing...'.format(queueing), end='\r', file=sys.stderr)
-                time.sleep(0.5)
-        print('', file=sys.stderr)
-        print('Finish!', file=sys.stderr)
-    # no alignment
-    elif args.mode == 2:
-        FA = AlignIO.read(args.IN, 'fasta')
-        seq_num = len(FA)
-        total_runs = queueing = int(seq_num * (seq_num + 1) / 2)
-        print('Found {} sequences, {} jobs in total.'.format(seq_num, total_runs), file=sys.stderr)
-        outs = []
-        for n1 in range(seq_num):
-            for n2 in range(n1, seq_num):
-                outs.append([FA[n1].id, FA[n2].id] + pairwise_identity(str(FA[n1].seq), str(FA[n2].seq)))
-                queueing -= 1
-                print('{} jobs are queueing...'.format(queueing), end='\r', file=sys.stderr)
-        print('', file=sys.stderr)
-        print('Finish!', file=sys.stderr)
-    # parse only
-    elif args.mode == 3:
-        if args.outfmt == 1:
-            print('In parse only mode, please specify other output format.', file=sys.stderr)
-            sys.exit(1)
-        with open(args.IN) as f:
-            outs = []
-            seq_list = []
-            for line in f.readlines():
-                if line.startswith('#'):
-                    continue
-                else:
-                    line = line.strip().split()
-                    line[5] = float(line[5])
-                    line[7] = float(line[7])
-                    if line[0] not in seq_list:
-                        seq_list.append(line[0])
-                        line[2] = int(line[2])
-                        outs.append([line[0], line[0], line[2], line[2], line[2], 1.0, line[2], 1.0])
-                    outs.append(line)
-            if line[1] not in seq_list:
-                seq_list.append(line[1])
-                line[3] = int(line[3])
-                outs.append([line[1], line[1], line[3], line[3], line[3], 1.0, line[3], 1.0])
-        seq_num = len(seq_list)
-
-    glb_val = []
-    loc_val = []
-    for o in outs:
-        if o[0] != o[1]:
-            glb_val.append(o[5])
-            loc_val.append(o[7])
-    glb_mean = sum(glb_val) / len(glb_val)
-    loc_mean = sum(loc_val) / len(loc_val)
-
-    ### output results ###
-    if args.outfmt == 1:
-        print('# number of sequences: {}\n'
-              '# mean of global identity: {:.4f}\n'
-              '# mean of local identity: {:.4f}\n'
-              '# seq1\tseq2\tlen1\tlen2\tglb_len\tglb_id\tloc_len\tloc_id'.format(seq_num, glb_mean, loc_mean), file=args.OUT)
-        for out in outs:
-            if out[0] != out[1]:
-                print('\t'.join(str(x) for x in out), file=args.OUT)
-    elif args.outfmt == 2 or args.outfmt == 3:
+    if not args.aligner:
         df = pd.DataFrame()
-        if args.outfmt == 2:
-            for out in outs:
-                df.at[out[1], out[0]] = out[5]
-            s = 'global'
-            i = glb_mean
-        elif args.outfmt == 3:
-            for out in outs:
-                df.at[out[1], out[0]] = out[7]
-            s = 'local'
-            i = loc_mean
-        print('# number of sequences: {}\n'
-              '# mean of {} identity: {:.4f}'.format(seq_num, s, i), file=args.OUT)
-        df.to_csv(args.OUT, sep='\t')
+        if args.f == 'f':
+            FA = [x for x in SeqIO.parse(args.IN, 'fasta')]
+            seq_num = len(FA)
+            for n1 in range(seq_num):
+                for n2 in range(n1 + 1, seq_num):
+                    df.at[FA[n1].id, FA[n2].id] = df.at[FA[n2].id, FA[n1].id] = '{:.8f}'.format(seq_identity(str(FA[n1].seq), str(FA[n2].seq), args.g))
+        elif args.f == 'p':
+            with open(args.IN) as f:
+                for alns in RelaxedPhylipParser(f):
+                    df.at[alns[0][0], alns[1][0]] = df.at[alns[1][0], alns[0][0]] = '{:.8f}'.format(seq_identity(alns[0][1], alns[1][1], args.g))
 
-    # avoide to terminate ipython console
-    if args.OUT != sys.stdout:
-        args.OUT.close()
+        for i in df.columns:
+            df.at[i, i] = '{:.8f}'.format(1.0)
+        df_to_phylip_matrix(df, args.o)
+    # perform pairwise alignment
+    else:
+        FA = [x for x in SeqIO.parse(args.IN, 'fasta')]
+        pairwise_alignment_through_fasta(FA, args.aligner, args.opts, args.thread, args.o)
+
+    if args.o != sys.stdout:
+        args.o.close()
 
 if __name__ == '__main__':
     main()
