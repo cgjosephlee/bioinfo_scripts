@@ -6,7 +6,7 @@ import io
 import argparse
 from statistics import median
 
-parser = argparse.ArgumentParser(description='fastq statistics')
+parser = argparse.ArgumentParser(description='fastq statistics for long reads')
 parser.add_argument('fastq',
                     help='fastq file')
 parser.add_argument('cutoff', nargs='?', type=int,
@@ -31,6 +31,14 @@ if args.fa:  # fasta
         else:
             lengths[-1] += len(line.strip())
 else:  # fastq
+    beginner = b'@' if FQ.endswith('.gz') else '@'
+    if next(FIN).startswith(beginner):
+        lengths.append(len(next(FIN).strip()))
+        next(FIN)
+        next(FIN)
+    else:
+        raise ValueError('Input is not in fastq format.')
+
     for line in FIN:
         lengths.append(len(next(FIN).strip()))
         next(FIN)
@@ -60,22 +68,20 @@ input fastq file: {}
 
 minimum length: {}
 maximum length: {}
-total seqs:   {}
-total length: {}
-avg. length:   {:.1f}
-median length: {:.1f}
+total seqs:     {}
+total length:   {} ({:.2f} Gbp)
+avg. length:    {:.1f}
+median length:  {:.1f}
 N90: {}
 N50: {}\
 '''.format(FQ,
            lengths[-1],
            lengths[0],
            len(lengths),
-           total_len,
+           total_len, total_len / 10 ** 9,
            total_len / len(lengths),
            median(lengths),
-           # read_N90[0],
            read_N90[1],
-           # read_N50[0],
            read_N50[1]
            ))
 
