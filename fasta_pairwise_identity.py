@@ -15,6 +15,8 @@ import io
 import argparse
 import re
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio import pairwise2
 import pandas as pd
 import subprocess as sp
 from threading import Thread
@@ -36,18 +38,18 @@ Use extarnal msa file:
 muscle -in input.fasta -out alignment.fasta
 {prog} -f f alignment.fasta
 
-Use this script to perform pairwise alignment of all sequence combinations:
+Use this script to perform all-vs-all pairwise alignment:
 {prog} --aligner muscle -o pairwise_alignment.phy input.fasta
 {prog} -f p pairwise_alignment.phy'''.format(prog=os.path.basename(sys.argv[0])))
     parser.add_argument('IN', metavar='fasta', help='fasta file')
     parser.add_argument('-f', metavar='FORMAT', type=str, choices=['f', 'p'], default='f',
-                        help='input file format [f: aligned fasta; p: multiple alignments phylip] (default: f)')
+                        help='input file format [f: pre-aligned fasta; p: multiple alignment phylip] (default: f)')
     parser.add_argument('-g', metavar='MODE', type=int, choices=[0, 1, 2], default=0,
                         help='gap manipulation [0: BLAST identity; 1: gap-excluded identity; 2: gap-compressed identity] (default: 0)')
     parser.add_argument('-o', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
                         help='output file (default: stdout)')
-    parser.add_argument('--aligner', metavar='PROG', choices=['muscle', 'mafft'],
-                        help='if this is given, the script performs pariwise alignment on input file and generate a multiple alignments file in relaxed-phylip format, which can be further proceeded by this script [muscle; mafft]')
+    parser.add_argument('--aligner', metavar='PROG', choices=['muscle', 'mafft', 'needle'],
+                        help='if this is given, the script performs pariwise alignment on input file and generate a multiple alignments file in relaxed-phylip format, which can be further proceeded by this script [needle; muscle (external); mafft (external)]')
     parser.add_argument('--thread', type=int, default=1,
                         help='threads for alignment')
     # argparse do not allow value starts with '-', a workaround is to assign equal sign `--opts='--var'`, or add a leadng space `--opts ' --var'`
@@ -138,7 +140,13 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
     s1 and s2 are SeqRrecord objects.
     Perform alignment and return list of aligned sequences.
     '''
-    if prog == 'muscle':
+    if prog == 'needle':
+        # EMBOSS needle default: DNAfull matrix (5, -4), gap penality (-10, -0.5)
+        alignment = pairwise2.align.globalms(s1.seq, s2.seq, 5, -4, -10, -0.5, one_alignment_only=True)[0]
+        # blastn
+        # alignment = pairwise2.align.globalms(s1.seq, s2.seq, 2, -3, -5, -2, one_alignment_only=True)[0]
+        return [SeqRecord(alignment[0], id=s1.id), SeqRecord(alignment[1], id=s2.id)]
+    elif prog == 'muscle':
         cmd = ['muscle', '-quiet'] + opts
         proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, universal_newlines=True)
         proc_out, proc_err = proc.communicate(input='>{}\n{}\n>{}\n{}'.format(s1.id, s1.seq, s2.id, s2.seq))
@@ -194,6 +202,7 @@ def pairwise_alignment_through_fasta(fastas, aligner, opts, thread, handle):
             time.sleep(0.1)
     print('', file=sys.stderr)
 
+    # printing alignments in phylip format
     for s1, s2 in outs:
         maxLen = len(s2.id) if len(s2.id) > len(s1.id) else len(s1.id)
         print('2 {}'.format(len(s1.seq)), file=handle)
