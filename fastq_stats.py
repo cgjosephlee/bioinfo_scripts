@@ -12,7 +12,7 @@ parser.add_argument('fastq',
 parser.add_argument('cutoff', nargs='?', type=int,
                     help='minimun length cutoff (0)')
 parser.add_argument('-p', action='store_true',
-                    help='plot histogram')
+                    help='plot histogram (require matplotlib)')
 parser.add_argument('--fa', action='store_true',
                     help='support fasta formatted read file')
 args = parser.parse_args()
@@ -90,8 +90,7 @@ if args.p:
         import matplotlib as mpl
         import matplotlib.pyplot as plt
     except ImportError:
-        print('Please install matplotlib to plot histogram.', file=sys.stderr)
-        raise
+        raise ImportError('Please install matplotlib to plot histogram.')
     print('\nPlotting histogram...', file=sys.stderr)
     out_png = FQ + '.hist.png'
     plt.hist(lengths, weights=lengths, bins=10**2)

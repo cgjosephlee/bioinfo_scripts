@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 '''
-support output .nex, including source info
+Concatenate sequences from multiple fastas.
+
+TODO:
+    https://biopython.org/wiki/Concatenate_nexus
+    support output .nex, including source info
 '''
 
 import sys
@@ -48,7 +52,7 @@ def parse_all_files(files, sep=None):
 #         print(s, **kwargs)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='concatenate fasta files by sequence IDs')
+    parser = argparse.ArgumentParser(description='Concatenate sequences from multiple fasta files by identifier (first column of ID)')
     parser.add_argument('fasta', nargs='+', type=str,
                         help='fasta files')
     # parser.add_argument('-n', type=int, default=80,
