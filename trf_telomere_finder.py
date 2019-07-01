@@ -20,8 +20,8 @@ def SlidingWindowREObj(seq):
     seq = seq * 2
     sw = []
     for i in range(l):
-        sw.append(seq[i:i+l])
-        sw.append(rc_seq(seq[i:i+l]))
+        sw.append(seq[i:i+l] + '$')
+        sw.append(rc_seq(seq[i:i+l]) + '$')
     return re.compile('(?:{})'.format('|'.join(sw)))
 
 parser = argparse.ArgumentParser(description='Find telomeric sequences.')

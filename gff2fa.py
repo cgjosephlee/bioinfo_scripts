@@ -94,7 +94,7 @@ in_gff_file = args.g
 table = args.table
 field = args.field
 if args.o == '':
-    prefix = in_seq_file.rstrip('.fa|.fasta')
+    prefix = re.sub(r'.fa$|.fasta$', '', in_seq_file)
 else:
     prefix = args.o
 if args.p == '':
