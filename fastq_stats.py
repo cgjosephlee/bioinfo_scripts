@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 
 import sys
-import gzip
 import io
+import gzip
 import argparse
 from statistics import median
+
+def check_format(handle, beginner):
+    if next(handle).startswith(beginner):
+        handle.seek(0)
+        return
+    else:
+        raise ValueError('Invalid file format.')
 
 parser = argparse.ArgumentParser(description='fastq statistics for long reads')
 parser.add_argument('fastq',
@@ -18,32 +25,33 @@ parser.add_argument('--fa', action='store_true',
 args = parser.parse_args()
 
 FQ = args.fastq
-# FIN = gzip.open(FQ) if FQ.endswith('.gz') else open(FQ)
-FIN = io.BufferedReader(gzip.open(FQ)) if FQ.endswith('.gz') else open(FQ)
 cutoff = args.cutoff if args.cutoff else 0
+
+is_gzipped = True if FQ.endswith('.gz') else False
+if is_gzipped:
+    handle = io.BufferedReader(gzip.open(FQ))
+else:
+    handle = open(FQ, 'rb')
 
 lengths = []
 if args.fa:  # fasta
-    beginner = b'>' if FQ.endswith('.gz') else '>'
-    for line in FIN:
+    beginner = b'>'
+    check_format(handle, beginner)
+
+    for line in handle:
         if line.startswith(beginner):
             lengths.append(0)
         else:
             lengths[-1] += len(line.strip())
 else:  # fastq
-    beginner = b'@' if FQ.endswith('.gz') else '@'
-    if next(FIN).startswith(beginner):
-        lengths.append(len(next(FIN).strip()))
-        next(FIN)
-        next(FIN)
-    else:
-        raise ValueError('Input is not in fastq format.')
+    beginner = b'@'
+    check_format(handle, beginner)
 
-    for line in FIN:
-        lengths.append(len(next(FIN).strip()))
-        next(FIN)
-        next(FIN)
-FIN.close()
+    for line in handle:
+        lengths.append(len(next(handle).strip()))
+        next(handle)
+        next(handle)
+handle.close()
 
 if cutoff != 0:
     lengths = [x for x in lengths if x > cutoff]
