@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
+'''
+A very fast multi-thread ORF finder.
+
+The script generates same results with NCBI ORFFinder, except this script:
+    - Do name serially by coordinates
+    - Do return ORFs in small scaffolds
+    - Do not return truncated ORF at scaffold ends
+    - Do not handle nested ORFs (since they are in different frames)
+'''
 
 import sys
 import argparse
 # from multiprocessing.dummy import Pool
 from multiprocessing import Pool
 from tqdm import tqdm
-# import progressbar
+from Bio.Data import CodonTable
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Multi-thread ORF finder. Masked regions and gaps are skipped.')
+    parser = argparse.ArgumentParser(description='Multi-thread ORF finder. Masked regions and gaps (N) are skipped.')
     parser.add_argument('fasta',
                         help='fasta file')
     parser.add_argument('-l', type=int, default=100,
@@ -18,26 +27,28 @@ def parse_args():
                         help='output file (stdout)')
     parser.add_argument('-t', type=int, default=1,
                         help='threads (1)')
-    parser.add_argument('--format', type=str, choices=['bed', 'gff', 'fna', 'faa'], default='bed',
-                        help='output format (bed, gff) (bed)')
+    parser.add_argument('--format', type=str, choices=['bed', 'gff'], default='bed',
+                        help='output format (bed)')
     parser.add_argument('--table', type=int, default=1,
                         help='codon table (1)')
+    parser.add_argument('--atg', action='store_true',
+                        help='use ATG as start codon only')
     return parser.parse_args()
 
 def revcomp(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     return ''.join(complement.get(base, base) for base in seq[::-1])
 
-def parseTable(table=1):
-    # more to come, utilize Bio.Data.CodonTable
-    if table == 1:
+def parseTable(table=1, ATGOnly=False):
+    # utilize Bio.Data.CodonTable
+    try:
+        codons = CodonTable.unambiguous_dna_by_id[table]
+        startCodon = set(codons.start_codons)
+        stopCodon = set(codons.stop_codons)
+    except KeyError:
+        raise KeyError('Invalid table ID ({}).'.format(table))
+    if ATGOnly:
         startCodon = set(['ATG'])
-        stopCodon = set(['TGA', 'TAG', 'TAA'])
-    elif table == 4:
-        startCodon = set(['ATA', 'ATT', 'ATC', 'ATG', 'GTG', 'CTG', 'TTG', 'TTA'])
-        stopCodon = set(['TAG', 'TAA'])
-    else:
-        raise ValueError('Not support yet!')
     startCodonRC = set([revcomp(x) for x in startCodon])
     stopCodonRC = set([revcomp(x) for x in stopCodon])
     return startCodon, stopCodon, startCodonRC, stopCodonRC
@@ -62,7 +73,7 @@ def SearchCodons(seqID, seq, frame=0, is_positive=True, minLen=100, startCodon=s
             if codon in startCodon and not startPos:
                 startPos = n
             elif codon in stopCodon and startPos:
-                if n - startPos > minLen:
+                if n - startPos + 3 > minLen:
                     orf_list.append((seqID, startPos, n+3, frame, '+'))
                     startPos = None
                 else:
@@ -78,7 +89,7 @@ def SearchCodons(seqID, seq, frame=0, is_positive=True, minLen=100, startCodon=s
             anticodon = seq[n:n+3]
             if anticodon in stopCodon:
                 if startPos and stopPos:
-                    if startPos - stopPos > minLen:
+                    if startPos - stopPos + 3 > minLen:
                         orf_list.append((seqID, stopPos, startPos+3, frame, '-'))
                     startPos = None
                 stopPos = n
@@ -172,13 +183,16 @@ def main():
     threads = args.t
     OutHandle = args.o
     OutFormat = args.format
-    CodonTable = args.table
+    tableID = args.table
 
-    startCodon, stopCodon, startCodonRC, stopCodonRC = parseTable(CodonTable)
+    print('Codon table = {}.'.format(tableID), file=sys.stderr)
+
+    startCodon, stopCodon, startCodonRC, stopCodonRC = parseTable(tableID, args.atg)
     with open(in_fa) as f:
-        FA = [x for x in SimpleFastaParser(f)]
+        FA = [(t, s.upper()) for (t, s) in SimpleFastaParser(f)]
 
-    print('Found {} sequences...'.format(len(FA)), file=sys.stderr)
+    print('Found {} sequences.'.format(len(FA)), file=sys.stderr)
+    print('Search in six frames...', file=sys.stderr)
 
     results = []
     pool = Pool(processes=threads)
@@ -197,20 +211,17 @@ def main():
     pb.update_to_value(len(results))
     pb.close()
 
-    # pb = progressbar.ProgressBar(widgets=[progressbar.Bar('#'), progressbar.Percentage()], maxval=len(FA)*6).start()
-    # while len(results) < len(FA) * 6:
-    #     pb.update(len(results))
-    # pb.finish()
-
     pool.join()
 
     print('Generating output...', file=sys.stderr)
     # flatten list
     results = [item for sublist in results for item in sublist]
     results.sort(key=lambda x: (x[0], x[1], x[2]))
-    generate_output(results, OutHandle, OutFormat, FA, CodonTable)
+    generate_output(results, OutHandle, OutFormat, FA, tableID)
     if OutHandle != sys.stdout:
         OutHandle.close()
+
+    print('Finish!', file=sys.stderr)
 
 if __name__ == '__main__':
     main()
