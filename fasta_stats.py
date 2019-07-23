@@ -3,29 +3,6 @@
 import gzip
 import argparse
 
-def FastaParser(handle):
-    """
-    Iterate over Fasta records as string tuples.
-    Took from Biopython FastaIO.
-    """
-    # Skip any text before the first record (e.g. blank lines, comments)
-    for line in handle:
-        if line[0] == '>':
-            title = line[1:].rstrip()
-            break
-    else:   # no break encountered
-        return  # Premature end of file, or just empty?
-
-    lines = []
-    for line in handle:
-        if line[0] == '>':
-            yield title, ''.join(lines).replace(" ", "").replace("\r", "")
-            lines = []
-            title = line[1:].rstrip()
-            continue
-        lines.append(line.rstrip())
-    yield title, ''.join(lines).replace(" ", "").replace("\r", "")
-
 def parse_args():
     parser = argparse.ArgumentParser(description='fasta statistics')
     parser.add_argument('fasta',
@@ -37,19 +14,23 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     FIN = args.fasta
-    FIN = gzip.open(FIN) if FIN.endswith('.gz') else open(FIN)
+    FIN = gzip.open(FIN) if FIN.endswith('.gz') else open(FIN, 'rb')
     cutoff = args.cutoff if args.cutoff else 0
 
     lengths = {}
     total_len = 0
     total_N = 0
     total_seqs = 0
-    for title, seq in FastaParser(FIN):
-        if len(seq) > cutoff:
-            lengths[title] = len(seq)
-            total_len += len(seq)
-            total_N = total_N + seq.count('N') + seq.count('n')
+    for line in FIN:
+        line = line.strip()
+        if line.startswith(b'>'):
+            title = line[1:].decode()
+            lengths[title] = 0
             total_seqs += 1
+        else:
+            lengths[title] += len(line)
+            total_len += len(line)
+            total_N += (line.count(b'N') + line.count(b'n'))
 
     lengths = sorted(lengths.items(), key=lambda x: x[1], reverse=True)
     total_len_50 = total_len * 0.5
