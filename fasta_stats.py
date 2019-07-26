@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import gzip
 import argparse
 
@@ -33,6 +34,29 @@ if __name__ == '__main__':
             total_N += (line.count(b'N') + line.count(b'n'))
 
     lengths = sorted(lengths.items(), key=lambda x: x[1], reverse=True)
+
+    if total_seqs < 3:
+        print('''\
+input fasta file: {}
+length cutoff: {}
+
+minimum length: {} ({})
+maximum length: {} ({})
+total seqs:   {}
+total length: {}
+avg. length:  {:.3f}
+number of Ns: {} ({:.3%})
+'''.format(args.fasta,
+           cutoff,
+           lengths[-1][1], lengths[-1][0],
+           lengths[0][1], lengths[0][0],
+           total_seqs,
+           total_len,
+           total_len / total_seqs,
+           total_N, total_N / total_len,
+           ))
+        sys.exit(0)
+
     total_len_50 = total_len * 0.5
     total_len_90 = total_len * 0.9
     ctg_N50 = None

@@ -28,6 +28,47 @@ import re
 #     else:
 #         raise ValueError('Invalid file format.')
 
+def fastq_get_read_length(fin):
+    print('Reading through file...', file=sys.stderr)
+    # rec_tot = 0
+    # base_tot = 0
+    lengths = []
+    try:
+        # first record
+        for l1 in fin:
+            if not l1.startswith(b'@'):
+                raise ValueError('Invalid file format.')
+            lengths.append(len(next(fin)) - 1)  # l2
+            next(fin)  # l3
+            next(fin)  # l4
+            break
+        for l1 in fin:
+            lengths.append(len(next(fin)) - 1)  # l2
+            next(fin)  # l3
+            next(fin)  # l4
+    except StopIteration:
+        raise ValueError('Invalid file format.')
+    return sorted(lengths, reverse=True)
+
+def cal_new_cutoff(lengths, cutoff, targetBase):
+    print('Total {} records, {} bases.'.format(len(lengths), sum(lengths)), file=sys.stderr)
+    print('Target is {} bases.'.format(targetBase), file=sys.stderr)
+    if targetBase > sum(lengths):
+        print('You probably need to sequence more.', file=sys.stderr)
+        sys.exit(1)
+    baseSum = 0
+    for i in lengths:
+        if baseSum < targetBase:
+            baseSum += i
+        else:
+            break
+    if i > cutoff:
+        print('New cutoff is {}, yielding {} bases.'.format(i, baseSum), file=sys.stderr)
+        return i
+    else:
+        print('New cutoff is {} < {}, use {} still.'.format(i, cutoff, cutoff), file=sys.stderr)
+        return cutoff
+
 def fasta_filter(fin, fout, cutoff):
     rec_tot = 0
     rec_flt = 0
@@ -121,6 +162,8 @@ def parse_args():
                         help='length cutoff (1000)')
     parser.add_argument('-o', metavar='file', type=str, default=None,
                         help='output file (AUTO)')
+    parser.add_argument('-t', metavar='base', type=int, default=None,
+                        help='descending read lengths and keep this many bases only (require input from file)')
     group1 = parser.add_mutually_exclusive_group(required=True)
     group1.add_argument('--fa', action='store_true',
                         help='fasta format')
@@ -133,6 +176,7 @@ if __name__ == '__main__':
     fastx = args.fastx
     foutname = args.o
     cutoff = args.c
+    targetBase = args.t
     stdin = False if fastx else True
     gz = True if fastx and fastx.endswith('.gz') else False
     if args.fa:
@@ -142,12 +186,28 @@ if __name__ == '__main__':
 
     # use binary stream
     if stdin:
+        if targetBase:
+            raise IOError('Target base method requires input from file.')
+        print('Reading from stdin.', file=sys.stderr)
         # fin = sys.stdin.buffer
         fin = os.fdopen(sys.stdin.fileno(), 'rb', closefd=False)
     elif gz:
         fin = io.BufferedReader(gzip.open(fastx))
     else:
         fin = open(fastx, 'rb')
+
+    if mode == 'fa':
+        print('Input is fasta. Cutoff is {}.'.format(cutoff), file=sys.stderr)
+    elif mode == 'fq':
+        print('Input is fastq. Cutoff is {}.'.format(cutoff), file=sys.stderr)
+
+    if targetBase:
+        if mode == 'fa':
+            # todo
+            sys.exit(99)
+        elif mode == 'fq':
+            cutoff = cal_new_cutoff(fastq_get_read_length(fin), cutoff, targetBase)
+        fin.seek(0)
 
     if foutname:
         fout = open(foutname, 'wb')
@@ -162,10 +222,8 @@ if __name__ == '__main__':
         fout = open(foutname, 'wb')
 
     if mode == 'fa':
-        print('Input is fasta. Cutoff is {}.'.format(cutoff), file=sys.stderr)
         rec_tot, rec_flt, base_tot, base_flt = fasta_filter(fin, fout, cutoff)
     elif mode == 'fq':
-        print('Input is fastq. Cutoff is {}.'.format(cutoff), file=sys.stderr)
         rec_tot, rec_flt, base_tot, base_flt = fastq_filter(fin, fout, cutoff)
 
     # finish!
