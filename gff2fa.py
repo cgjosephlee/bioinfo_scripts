@@ -54,7 +54,7 @@ def parse_gff(file, CDS_mode):
     n = -1
     gene_lt = []
     with open(file) as GFF:
-        for line in GFF.readlines():
+        for line in GFF:
             line = line.strip()
             if not line.startswith('#') and not line == '':
                 line = line.split('\t')
@@ -118,7 +118,7 @@ with open(prefix + '.cds.fa', 'w') as nt_out,\
         prot_seq = ''
         try:
             for start, end in rec['location']:
-                nt_seq += FA_dict[rec['chr']].seq[start: end]
+                nt_seq += FA_dict[rec['chr']].seq[start:end]
         except KeyError:
             print('WARNING: gene has no exon ({})'.format(rec[field]), file=sys.stderr)
             continue

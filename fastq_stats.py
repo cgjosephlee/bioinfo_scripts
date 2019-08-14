@@ -80,8 +80,8 @@ total seqs:     {}
 total length:   {} ({:.2f} Gbp)
 avg. length:    {:.1f}
 median length:  {:.1f}
-N90: {}
-N50: {}\
+N90:            {}
+N50:            {}\
 '''.format(FQ,
            lengths[-1],
            lengths[0],

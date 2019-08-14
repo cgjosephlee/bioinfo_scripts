@@ -25,7 +25,7 @@ parser.add_argument('-m', type=int, help='max mem for java in Gb (64)', default=
 parser.add_argument('-i', type=int, help='number of iterations (5)', default=5)
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
 parser.add_argument('-t', type=int, help='threads (20)', default=20)
-parser.add_argument('--aligner', type=str, help='bwa or smalt (smalt)', default='smalt')
+parser.add_argument('--aligner', type=str, help='bwa or smalt (bwa)', default='bwa')
 args = parser.parse_args()
 
 fa_base = args.fasta
