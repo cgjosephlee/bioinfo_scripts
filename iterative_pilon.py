@@ -4,7 +4,7 @@
 Run pilon iterativily. Will detect finished runs.
 
 Require:
-    java
+    java 8
     pilon
     bwa/smalt
     samtools
@@ -21,11 +21,11 @@ parser.add_argument('fasta')
 parser.add_argument('fq1')
 parser.add_argument('fq2')
 parser.add_argument('-j', type=str, help='pilon jar', required=True)
-parser.add_argument('-m', type=int, help='max mem for java in Gb (64)', default=64)
-parser.add_argument('-i', type=int, help='number of iterations (5)', default=5)
+parser.add_argument('-m', type=int, help='max mem for java in Gb (%(default)s)', default=64)
+parser.add_argument('-i', type=int, help='number of iterations (%(default)s)', default=5)
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
-parser.add_argument('-t', type=int, help='threads (20)', default=20)
-parser.add_argument('--aligner', type=str, help='bwa or smalt (bwa)', default='bwa')
+parser.add_argument('-t', type=int, help='threads (%(default)s)', default=20)
+parser.add_argument('--aligner', type=str, help='bwa or smalt (%(default)s)', default='bwa')
 args = parser.parse_args()
 
 fa_base = args.fasta

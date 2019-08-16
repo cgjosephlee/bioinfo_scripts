@@ -18,8 +18,8 @@ parser = argparse.ArgumentParser(description='Run racon iterativily with nanopor
 parser.add_argument('fasta')
 parser.add_argument('fq')
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
-parser.add_argument('-i', type=int, help='number of iterations (3)', default=3)
-parser.add_argument('-t', type=int, help='threads (20)', default=20)
+parser.add_argument('-i', type=int, help='number of iterations (%(default)s)', default=4)
+parser.add_argument('-t', type=int, help='threads (%(default)s)', default=20)
 parser.add_argument('--racon', type=str, help='racon executable if not in $PATH', default='racon')
 parser.add_argument('--minimap2', type=str, help='minimap2 executable if not in $PATH', default='minimap2')
 args = parser.parse_args()
@@ -45,11 +45,13 @@ for n in range(iter_n):
         print('Found iteration {} result, skip.'.format(n + 1), file=sys.stderr)
         continue
 
-    aln = 'reads{}.paf'.format(n + 1)
+    aln = 'reads{}.sam'.format(n + 1)
     print('Iteration {} start...'.format(n + 1), file=sys.stderr)
     if not os.path.isfile(aln) or os.path.getsize(aln) == 0:
         with open(aln, 'w') as OUT, open('minimap.{}.err'.format(n + 1), 'w') as ERR:
-            sp.run([MINIMAP, '-x', mapper, '-t', str(threads), fa_in, fq], stdout=OUT, stderr=ERR, check=True)
+            # '-c' or '-a' is crucial in minimap2 mapping approach!
+            # https://github.com/lh3/minimap2/blob/master/FAQ.md#1-alignment-different-with-option--a-or--c
+            sp.run([MINIMAP, '-a', '-x', mapper, '-t', str(threads), fa_in, fq], stdout=OUT, stderr=ERR, check=True)
 
     with open(fa_out, 'w') as OUT, open('racon.{}.err'.format(n + 1), 'w') as ERR:
         sp.run([RACON, '-t', str(threads), fq, aln, fa_in], stdout=OUT, stderr=ERR, check=True)
