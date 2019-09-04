@@ -1,29 +1,48 @@
 #!/usr/bin/env python3
 '''
-Sort fasta by length.
+Sort a fasta.
 No rename. No wrapping or unwrapping.
 
 NOTE:
 A more advanced implementation: http://biopython.org/DIST/docs/tutorial/Tutorial.html#sec:SeqIO-sort
 '''
 
-import sys
+import argparse
+import re
 
-fin = sys.argv[1]
-data = {}
+parser = argparse.ArgumentParser(description='Sort a fasta.')
+parser.add_argument('fasta', type=str)
+parser.add_argument('--by', type=str, choices=['l', 'n', 'N'], default='l',
+                    help='l: descending length; n: alphabetically ordered ID; N: naturally ordered ID (%(default)s)')
+args = parser.parse_args()
 
+fin = args.fasta
+key = args.by
+
+seq = {}
+seq_len = {}
 with open(fin) as f:
     for line in f:
         line = line.strip()
         if line.startswith('>'):
             h = line[1:]
-            data[h] = {'seq': [], 'length': 0}
+            seq[h] = []
+            seq_len[h] = 0
         else:
-            data[h]['seq'].append(line)
-            data[h]['length'] += len(line)
+            seq[h].append(line)
+            seq_len[h] += len(line)
 
-data = sorted(data.items(), key=lambda x: x[1]['length'], reverse=True)
-# return list of tuples
+# sort by descending length
+if key == 'l':
+    sorted_ID = [x for x,_ in sorted(seq_len.items(), reverse=True, key=lambda x: x[1])]
+# lexical sort by ID
+elif key == 'n':
+    sorted_ID = sorted(seq.keys())
+# natural sort by ID, case insensitive
+elif key == 'N':
+    # https://stackoverflow.com/a/16090640/7859425
+    sorted_ID = sorted(seq.keys(),
+                       key=lambda s: [int(t) if t.isdigit() else t.lower() for t in re.split('(\d+)', s)])
 
-for k, v in data:
-    print('>{}\n{}'.format(k, '\n'.join(v['seq'])))
+for i in sorted_ID:
+    print('>{}\n{}'.format(i, '\n'.join(seq[i])))
