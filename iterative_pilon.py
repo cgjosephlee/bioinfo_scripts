@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 '''
 Run pilon iterativily. Will detect finished runs.
 
@@ -14,6 +13,7 @@ import sys
 import os
 import re
 import argparse
+import time
 import subprocess as sp
 
 parser = argparse.ArgumentParser(description='Run pilon iterativily. Will detect finished runs.')
@@ -50,18 +50,25 @@ for n in range(iter_n):
         fa_out = fa_out + '.fasta'
         continue
 
-    print('Iteration {} start...'.format(n + 1), file=sys.stderr)
-    if not os.path.isfile(fa_out + '.bam'):
-        if aligner == 'bwa':
-            sp.run(['bwa', 'index', fa_in], check=True)
-            sp.run('bwa mem -v 1 -t {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True)
-            sp.run('rm {0}.amb {0}.ann {0}.bwt {0}.pac {0}.sa'.format(fa_in), shell=True, check=True)
-        elif aligner == 'smalt':
-            sp.run('smalt index {0} {0}'.format(fa_in), shell=True, check=True)
-            sp.run('smalt map -n {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True)
-            sp.run('rm {0}.sma {0}.smi'.format(fa_in), shell=True, check=True)
-        sp.run('samtools index {}.bam'.format(fa_out), shell=True, check=True)
+    startTime = time.time()
+    print('[{}] Iteration {} start...'.format(time.strftime("%H:%M:%S", time.localtime(startTime)), n + 1), file=sys.stderr)
 
-    sp.run('java -Xms512m -Xmx{}G -jar {} --genome {} --frags {}.bam --output {} --changes --threads {}'.format(maxMem, pilon_jar, fa_in, fa_out, fa_out, threads), shell=True, check=True)
-    print('Iteration {} finish!'.format(n + 1), file=sys.stderr)
-    fa_out = fa_out + '.fasta'
+    with open('pilon.{}.log'.format(fa_out), 'w') as ERR:
+        if not os.path.isfile(fa_out + '.bam'):
+            if aligner == 'bwa':
+                sp.run(['bwa', 'index', fa_in], check=True, stderr=ERR)
+                sp.run('bwa mem -v 1 -t {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('rm {0}.amb {0}.ann {0}.bwt {0}.pac {0}.sa'.format(fa_in), shell=True, check=True)
+            elif aligner == 'smalt':
+                sp.run('smalt index {0} {0}'.format(fa_in), shell=True, check=True, stderr=ERR)
+                sp.run('smalt map -n {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('rm {0}.sma {0}.smi'.format(fa_in), shell=True, check=True)
+            sp.run('samtools index {}.bam'.format(fa_out), shell=True, check=True, stderr=ERR)
+
+        sp.run('java -Xms512m -Xmx{}G -jar {} --genome {} --frags {}.bam --output {} --changes --threads {}'.format(maxMem, pilon_jar, fa_in, fa_out, fa_out, threads), shell=True, check=True, stdout=ERR)
+        fa_out = fa_out + '.fasta'
+
+    print('[{}] Iteration {} finish! (Elapsed: {} sec)'.format(
+        time.strftime("%H:%M:%S", time.localtime()),
+        n + 1,
+        int(time.time() - startTime)), file=sys.stderr)
