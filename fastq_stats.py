@@ -27,8 +27,11 @@ args = parser.parse_args()
 FQ = args.fastq
 cutoff = args.cutoff if args.cutoff else 0
 
+is_stdin = True if FQ == '-' else False
 is_gzipped = True if FQ.endswith('.gz') else False
-if is_gzipped:
+if is_stdin:
+    handle = sys.stdin.buffer
+elif is_gzipped:
     handle = io.BufferedReader(gzip.open(FQ))
 else:
     handle = open(FQ, 'rb')
@@ -36,7 +39,8 @@ else:
 lengths = []
 if args.fa:  # fasta
     beginner = b'>'
-    check_format(handle, beginner)
+    if not is_stdin:
+        check_format(handle, beginner)
 
     for line in handle:
         if line.startswith(beginner):
@@ -45,7 +49,8 @@ if args.fa:  # fasta
             lengths[-1] += len(line.strip())
 else:  # fastq
     beginner = b'@'
-    check_format(handle, beginner)
+    if not is_stdin:
+        check_format(handle, beginner)
 
     for line in handle:
         lengths.append(len(next(handle).strip()))
