@@ -19,22 +19,26 @@ if __name__ == '__main__':
     cutoff = args.cutoff if args.cutoff else 0
 
     lengths = {}
-    total_len = 0
-    total_N = 0
-    total_seqs = 0
+    Ns = {}
     for line in FIN:
         line = line.strip()
         if line.startswith(b'>'):
             title = line[1:].decode()
             lengths[title] = 0
-            total_seqs += 1
+            Ns[title] = 0
         else:
             lengths[title] += len(line)
-            total_len += len(line)
-            total_N += (line.count(b'N') + line.count(b'n'))
+            Ns[title] += (line.count(b'N') + line.count(b'n'))
+    FIN.close()
 
-    lengths = sorted(lengths.items(), key=lambda x: x[1], reverse=True)
+    lengths = sorted(filter(lambda x: x[1] > cutoff, lengths.items()), key=lambda x: x[1], reverse=True)
+    total_len = sum([x[1] for x in lengths])
+    titles_pass = [x[0] for x in lengths]
+    total_N = sum([x[1] for x in filter(lambda x: x[0] in titles_pass, Ns.items())])
+    total_seqs = len(lengths)
 
+    # not caculating N50 etc. due to less sequences
+    # print basic stats and exit
     if total_seqs < 3:
         print('''\
 input fasta file: {}
@@ -74,7 +78,6 @@ number of Ns: {} ({:.3%})
         for i in range(len(above_len)):
             if v > above_len[i]:
                 above_counts[i] += 1
-    FIN.close()
 
     print('''\
 input fasta file: {}
