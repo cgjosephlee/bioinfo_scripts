@@ -14,7 +14,7 @@ parser.add_argument('-d', metavar='str', type=str, default='\t',
 parser.add_argument('--header', action='store_true',
                     help='has header')
 parser.add_argument('--cols', metavar='list', type=str,
-                    help='target columns, 0-base index or colnames (with -h), comma separated (all)')
+                    help='target columns, 0-base index or colnames (with header), comma separated (all)')
 parser.add_argument('--skip', metavar='int', type=int,
                     help='skip top n rows')
 args = parser.parse_args()

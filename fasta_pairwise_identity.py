@@ -49,7 +49,7 @@ Use this script to perform all-vs-all pairwise alignment:
     parser.add_argument('-o', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
                         help='output file (default: stdout)')
     parser.add_argument('--aligner', metavar='PROG', choices=['muscle', 'mafft', 'needle'],
-                        help='if this is given, the script performs pariwise alignment on input file and generate a multiple alignments file in relaxed-phylip format, which can be further proceeded by this script [needle; muscle (external); mafft (external)]')
+                        help='if this is given, the script performs pariwise alignment on input file and generate a multiple alignment file in relaxed-phylip format, which can be further proceeded by this script [needle; muscle (external); mafft (external)]')
     parser.add_argument('--thread', type=int, default=1,
                         help='threads for alignment')
     # argparse do not allow value starts with '-', a workaround is to assign equal sign `--opts='--var'`, or add a leadng space `--opts ' --var'`
