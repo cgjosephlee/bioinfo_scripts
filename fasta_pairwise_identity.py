@@ -20,7 +20,7 @@ from Bio import pairwise2
 import pandas as pd
 import subprocess as sp
 from threading import Thread
-from queue import Queue
+from queue import Queue, Empty
 import time
 import tempfile
 
@@ -149,7 +149,7 @@ def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
     elif prog == 'muscle':
         cmd = ['muscle', '-quiet'] + opts
         proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, universal_newlines=True)
-        proc_out, proc_err = proc.communicate(input='>{}\n{}\n>{}\n{}'.format(s1.id, s1.seq, s2.id, s2.seq))
+        proc_out, proc_err = proc.communicate(input='>{}\n{}\n>{}\n{}'.format(s1.id, s1.seq, s2.id, s2.seq), timeout=30)
         if proc.returncode == 0:
             return [x for x in SeqIO.parse(io.StringIO(proc_out), 'fasta')]
         else:
@@ -175,9 +175,17 @@ def pairwise_alignment_through_fasta(fastas, aligner, opts, thread, handle):
     output in phylip format
     '''
     def worker():
+        # print('start:', threading.get_ident())
         while not queue.empty():
-            n1, n2, n = queue.get()
-            outs[n] = pairwise_alignment(fastas[n1], fastas[n2], aligner, opts)
+            try:
+                n1, n2, n = queue.get(timeout=1)
+                outs[n] = pairwise_alignment(fastas[n1], fastas[n2], aligner, opts)
+                # debug
+                # outs[n] = [SeqIO.SeqRecord('ATATA', id=fastas[n1].id),
+                #            SeqIO.SeqRecord('TTTTT', id=fastas[n2].id)]
+            except Empty:
+                break
+        # print('stop:', threading.get_ident())
 
     check_program(aligner)
 
@@ -195,12 +203,20 @@ def pairwise_alignment_through_fasta(fastas, aligner, opts, thread, handle):
     print('Open {} threads, running {} jobs...'.format(thread, total_jobs), file=sys.stderr)
     for th in threads:
         th.start()
-    for th in threads:
-        # th.join()
-        while th.is_alive():
-            print('{} jobs are queueing...'.format(queue.qsize()), end='\r', file=sys.stderr)
-            time.sleep(0.1)
-    print('', file=sys.stderr)
+    try:
+        for th in threads:
+            # th.join()
+            while th.is_alive():
+                print('{} jobs are queueing...'.format(queue.qsize()), end='\r', file=sys.stderr)
+                time.sleep(1)
+        print('', file=sys.stderr)
+    except KeyboardInterrupt:
+        for s1, s2 in outs:
+            maxLen = len(s2.id) if len(s2.id) > len(s1.id) else len(s1.id)
+            print('2 {}'.format(len(s1.seq)), file=handle)
+            print('{: <{}} {}'.format(s1.id, maxLen, s1.seq), file=handle)
+            print('{: <{}} {}'.format(s2.id, maxLen, s2.seq), file=handle)
+        raise
 
     # printing alignments in phylip format
     for s1, s2 in outs:
