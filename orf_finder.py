@@ -168,6 +168,7 @@ def generate_output(results, handle, format, fasta=[], table=1):
             pass
 
 # hack tqdm to behave like progressbar
+# tqdm >= 4.30.0, tested with 4.32.2
 class tqdm(tqdm):
     def update_to_value(self, n):
         if n > self.last_print_n:
@@ -189,7 +190,7 @@ def main():
 
     startCodon, stopCodon, startCodonRC, stopCodonRC = parseTable(tableID, args.atg)
     with open(in_fa) as f:
-        FA = [(t, s.upper()) for (t, s) in SimpleFastaParser(f)]
+        FA = [(t.split()[0], s.upper()) for (t, s) in SimpleFastaParser(f)]
 
     print('Found {} sequences.'.format(len(FA)), file=sys.stderr)
     print('Search in six frames...', file=sys.stderr)
