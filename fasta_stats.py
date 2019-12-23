@@ -10,6 +10,8 @@ def parse_args():
                         help='fasta file')
     parser.add_argument('cutoff', nargs='?', type=int,
                         help='minimun length cutoff (0)')
+    parser.add_argument('-s', action='store_true',
+                        help='print single line format')
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -79,7 +81,22 @@ number of Ns: {} ({:.3%})
             if v > above_len[i]:
                 above_counts[i] += 1
 
-    print('''\
+    if args.s:
+        # total_base seq_num mean max L50 N50 L90 N90 N
+        print(
+            total_len,
+            total_seqs,
+            '{:.1f}'.format(total_len / total_seqs / 1e3),
+            '{:.1f}'.format(lengths[0][1] / 1e3),
+            '{:.1f}'.format(ctg_N50[2] / 1e3),
+            ctg_N50[0],
+            '{:.1f}'.format(ctg_N90[2] / 1e3),
+            ctg_N90[0],
+            total_N,
+            sep='\t'
+        )
+    else:
+        print('''\
 input fasta file: {}
 length cutoff: {}
 
@@ -91,10 +108,10 @@ total seqs:   {}
 total length: {}
 avg. length:  {:.3f}
 number of Ns: {} ({:.3%})
-L90: {} ({})
-N90: {}
-L50: {} ({})
-N50: {}
+N50: {} ({})
+L50: {}
+N90: {} ({})
+L90: {}
 '''.format(args.fasta,
            cutoff,
            lengths[-1][1], lengths[-1][0],
@@ -105,22 +122,36 @@ N50: {}
            total_len,
            total_len / total_seqs,
            total_N, total_N / total_len,
-           ctg_N90[0], ctg_N90[1],
-           ctg_N90[2],
            ctg_N50[0], ctg_N50[1],
-           ctg_N50[2]
+           ctg_N50[2],
+           ctg_N90[0], ctg_N90[1],
+           ctg_N90[2]
            ))
 
-    print('''\
+        print('''\
 seq counts:
 > 100 bp:  {}
 >   1 Kbp: {}
 >  10 Kbp: {}
 > 100 Kbp: {}
->   1 Mbp: {}\
+>   1 Mbp: {}
 '''.format(above_counts[0],
            above_counts[1],
            above_counts[2],
            above_counts[3],
            above_counts[4]
            ))
+
+        print('# total_base seq_num mean max L50 N50 L90 N90 N')
+        print(
+            total_len,
+            total_seqs,
+            '{:.1f}'.format(total_len / total_seqs / 1e3),
+            '{:.1f}'.format(lengths[0][1] / 1e3),
+            '{:.1f}'.format(ctg_N50[2] / 1e3),
+            ctg_N50[0],
+            '{:.1f}'.format(ctg_N90[2] / 1e3),
+            ctg_N90[0],
+            total_N,
+            sep='\t'
+        )

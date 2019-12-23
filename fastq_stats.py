@@ -22,6 +22,8 @@ parser.add_argument('-p', action='store_true',
                     help='plot histogram (require matplotlib)')
 parser.add_argument('--fa', action='store_true',
                     help='support fasta formatted read file')
+parser.add_argument('-s', action='store_true',
+                    help='print single line format')
 args = parser.parse_args()
 
 FQ = args.fastq
@@ -76,7 +78,20 @@ for n, v in enumerate(lengths, 1):
         read_N90 = (n, v)
         break
 
-print('''\
+if args.s:
+    # total_base seq_num mean max min L50 L90
+    print(
+        total_len,
+        len(lengths),
+        total_len / len(lengths),
+        lengths[0],
+        lengths[-1],
+        read_N50[1],
+        read_N90[1],
+        sep='\t'
+    )
+else:
+    print('''\
 input fastq file: {}
 
 minimum length: {}
@@ -85,8 +100,8 @@ total seqs:     {}
 total length:   {} ({:.2f} Gbp)
 avg. length:    {:.1f}
 median length:  {:.1f}
-N90:            {}
-N50:            {}\
+L50:            {}
+L90:            {}
 '''.format(FQ,
            lengths[-1],
            lengths[0],
@@ -94,9 +109,20 @@ N50:            {}\
            total_len, total_len / 10 ** 9,
            total_len / len(lengths),
            median(lengths),
-           read_N90[1],
-           read_N50[1]
+           read_N50[1],
+           read_N90[1]
            ))
+    print('# total_base seq_num mean max min L50 L90')
+    print(
+        total_len,
+        len(lengths),
+        total_len / len(lengths),
+        lengths[0],
+        lengths[-1],
+        read_N50[1],
+        read_N90[1],
+        sep='\t'
+    )
 
 if args.p:
     try:
@@ -119,8 +145,8 @@ if args.p:
     t = '''\
     Total yield = {:.2f} Gbp
     Max. length = {} bp
-    N50 = {} bp
-    N90 = {} bp'''.format(total_len / 10**9, lengths[0], read_N50[1], read_N90[1])
+    L50 = {} bp
+    L90 = {} bp'''.format(total_len / 10**9, lengths[0], read_N50[1], read_N90[1])
     plt.text(0.9, 0.9, t,
              transform=plt.gca().transAxes,
              verticalalignment='top',
