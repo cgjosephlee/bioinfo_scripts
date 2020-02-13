@@ -72,7 +72,7 @@ def parse_trf_output(handle, ctg_len,
 
             line[0] = int(line[0])
             line[1] = int(line[1])
-            # cols: ctg ctg_len START pos_start pos_end length repeat_size repeat_copies repeat_seq
+            # cols: ctg ctg_len label pos_start pos_end length repeat_size repeat_copies repeat_seq
             # START
             if line[1] < search_window:
                 FoundInSTART.add(ctg)

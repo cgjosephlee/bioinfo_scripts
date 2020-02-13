@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import gzip
 import argparse
 
@@ -39,30 +38,6 @@ if __name__ == '__main__':
     total_N = sum([x[1] for x in filter(lambda x: x[0] in titles_pass, Ns.items())])
     total_seqs = len(lengths)
 
-    # not caculating N50 etc. due to less sequences
-    # print basic stats and exit
-    if total_seqs < 3:
-        print('''\
-input fasta file: {}
-length cutoff: {}
-
-minimum length: {} ({})
-maximum length: {} ({})
-total seqs:   {}
-total length: {}
-avg. length:  {:.3f}
-number of Ns: {} ({:.3%})
-'''.format(args.fasta,
-           cutoff,
-           lengths[-1][1], lengths[-1][0],
-           lengths[0][1], lengths[0][0],
-           total_seqs,
-           total_len,
-           total_len / total_seqs,
-           total_N, total_N / total_len,
-           ))
-        sys.exit(0)
-
     total_len_50 = total_len * 0.5
     total_len_90 = total_len * 0.9
     ctg_N50 = None
@@ -95,6 +70,26 @@ number of Ns: {} ({:.3%})
             total_N,
             sep='\t'
         )
+    elif total_seqs < 3:
+        print('''\
+input fasta file: {}
+length cutoff: {}
+
+minimum length: {} ({})
+maximum length: {} ({})
+total seqs:   {}
+total length: {}
+avg. length:  {:.3f}
+number of Ns: {} ({:.3%})
+'''.format(args.fasta,
+           cutoff,
+           lengths[-1][1], lengths[-1][0],
+           lengths[0][1], lengths[0][0],
+           total_seqs,
+           total_len,
+           total_len / total_seqs,
+           total_N, total_N / total_len,
+           ))
     else:
         print('''\
 input fasta file: {}
@@ -108,10 +103,10 @@ total seqs:   {}
 total length: {}
 avg. length:  {:.3f}
 number of Ns: {} ({:.3%})
-N50: {} ({})
-L50: {}
-N90: {} ({})
-L90: {}
+L50: {} ({})
+N50: {}
+L90: {} ({})
+N90: {}
 '''.format(args.fasta,
            cutoff,
            lengths[-1][1], lengths[-1][0],
@@ -142,7 +137,7 @@ seq counts:
            above_counts[4]
            ))
 
-        print('# total_base seq_num mean max L50 N50 L90 N90 N')
+        print('# total_base seq_num mean(kb) max(kb) N50(kb) L50 N90(kb) L90 N')
         print(
             total_len,
             total_seqs,

@@ -100,8 +100,8 @@ total seqs:     {}
 total length:   {} ({:.2f} Gbp)
 avg. length:    {:.1f}
 median length:  {:.1f}
-L50:            {}
-L90:            {}
+N50:            {}
+N90:            {}
 '''.format(FQ,
            lengths[-1],
            lengths[0],
@@ -112,7 +112,7 @@ L90:            {}
            read_N50[1],
            read_N90[1]
            ))
-    print('# total_base seq_num mean max min L50 L90')
+    print('# total_base seq_num mean max min N50 N90')
     print(
         total_len,
         len(lengths),
@@ -145,8 +145,8 @@ if args.p:
     t = '''\
     Total yield = {:.2f} Gbp
     Max. length = {} bp
-    L50 = {} bp
-    L90 = {} bp'''.format(total_len / 10**9, lengths[0], read_N50[1], read_N90[1])
+    N50 = {} bp
+    N90 = {} bp'''.format(total_len / 10**9, lengths[0], read_N50[1], read_N90[1])
     plt.text(0.9, 0.9, t,
              transform=plt.gca().transAxes,
              verticalalignment='top',
