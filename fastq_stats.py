@@ -6,92 +6,129 @@ import gzip
 import argparse
 from statistics import median
 
-def check_format(handle, beginner):
-    if next(handle).startswith(beginner):
-        handle.seek(0)
-        return
+# def check_format(handle, beginner):
+#     if next(handle).startswith(beginner):
+#         handle.seek(0)
+#         return
+#     else:
+#         raise ValueError('Invalid file format.')
+
+def get_read_length(handle, type='fq'):
+    lengths = []
+    if type == 'fq':
+        try:
+            # first record
+            for l1 in handle:
+                if not l1.startswith(b'@'):
+                    raise ValueError('Invalid file format.')
+                lengths.append(len(next(handle)) - 1)  # l2
+                next(handle)  # l3
+                next(handle)  # l4
+                break
+            for l1 in handle:
+                lengths.append(len(next(handle)) - 1)  # l2
+                next(handle)  # l3
+                next(handle)  # l4
+        except StopIteration:
+            raise ValueError('Invalid file format.')
+    elif type == 'fa':
+        # first line
+        for line in handle:
+            if line.startswith(b'>'):
+                lengths.append(0)
+                break
+            else:
+                raise ValueError('Invalid file format.')
+        for line in handle:
+            if line.startswith(b'>'):
+                lengths.append(0)
+            else:
+                lengths[-1] += len(line.rstrip())
+    return sorted(lengths, reverse=True)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='fastq statistics for long reads')
+    parser.add_argument('fastq',
+                        help='fastq file, \'-\' to read from STDIN')
+    parser.add_argument('-c', metavar='cutoff', type=int, default=0,
+                        help='minimun length cutoff (0)')
+    parser.add_argument('-p', action='store_true',
+                        help='plot histogram (require matplotlib)')
+    parser.add_argument('-s', action='store_true',
+                        help='print single line format')
+    parser.add_argument('--fa', action='store_true',
+                        help='support fasta formatted read file')
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = parse_args()
+    FIN = args.fastq
+    cutoff = args.c
+
+    is_stdin = True if FIN == '-' else False
+    is_gzipped = True if FIN.endswith('.gz') else False
+    if is_stdin:
+        handle = sys.stdin.buffer
+    elif is_gzipped:
+        handle = io.BufferedReader(gzip.open(FIN))
     else:
-        raise ValueError('Invalid file format.')
+        handle = open(FIN, 'rb')
 
-parser = argparse.ArgumentParser(description='fastq statistics for long reads')
-parser.add_argument('fastq',
-                    help='fastq file')
-parser.add_argument('cutoff', nargs='?', type=int,
-                    help='minimun length cutoff (0)')
-parser.add_argument('-p', action='store_true',
-                    help='plot histogram (require matplotlib)')
-parser.add_argument('--fa', action='store_true',
-                    help='support fasta formatted read file')
-parser.add_argument('-s', action='store_true',
-                    help='print single line format')
-args = parser.parse_args()
+    if args.fa:
+        lengths = get_read_length(handle, 'fa')
+    else:
+        lengths = get_read_length(handle, 'fq')
+    handle.close()
 
-FQ = args.fastq
-cutoff = args.cutoff if args.cutoff else 0
+    if cutoff != 0:
+        lengths = [x for x in lengths if x > cutoff]
 
-is_stdin = True if FQ == '-' else False
-is_gzipped = True if FQ.endswith('.gz') else False
-if is_stdin:
-    handle = sys.stdin.buffer
-elif is_gzipped:
-    handle = io.BufferedReader(gzip.open(FQ))
-else:
-    handle = open(FQ, 'rb')
+    # calculate N10-N90
+    total_len = sum(lengths)
+    partitions = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9]
+    thresholds = [total_len * x for x in partitions]
+    read_Nxx = []
+    accu_len = 0
+    n = 0
+    for current_threshold in thresholds:
+        while 1:
+            accu_len += lengths[n]
+            if accu_len > current_threshold:
+                read_Nxx.append((n + 1, lengths[n], accu_len))
+                n += 1
+                break
+            n += 1
 
-lengths = []
-if args.fa:  # fasta
-    beginner = b'>'
-    if not is_stdin:
-        check_format(handle, beginner)
+    read_N50 = read_Nxx[8]
+    read_N90 = read_Nxx[16]
 
-    for line in handle:
-        if line.startswith(beginner):
-            lengths.append(0)
-        else:
-            lengths[-1] += len(line.strip())
-else:  # fastq
-    beginner = b'@'
-    if not is_stdin:
-        check_format(handle, beginner)
+    # total_len_50 = total_len * 0.5
+    # total_len_90 = total_len * 0.9
+    # read_N50 = None
+    # read_N90 = None
+    # accu_len = 0
+    # for n, v in enumerate(lengths, 1):
+    #     accu_len += v
+    #     if not read_N50 and accu_len > total_len_50:
+    #         read_N50 = (n, v)
+    #     if not read_N90 and accu_len > total_len_90:
+    #         read_N90 = (n, v)
+    #         break
 
-    for line in handle:
-        lengths.append(len(next(handle).strip()))
-        next(handle)
-        next(handle)
-handle.close()
-
-if cutoff != 0:
-    lengths = [x for x in lengths if x > cutoff]
-lengths.sort(reverse=True)
-total_len = sum(lengths)
-total_len_50 = total_len * 0.5
-total_len_90 = total_len * 0.9
-read_N50 = None
-read_N90 = None
-accu_len = 0
-
-for n, v in enumerate(lengths, 1):
-    accu_len += v
-    if not read_N50 and accu_len > total_len_50:
-        read_N50 = (n, v)
-    if not read_N90 and accu_len > total_len_90:
-        read_N90 = (n, v)
-        break
-
-if args.s:
-    # total_base seq_num mean max min L50 L90
-    print(
-        total_len,
-        len(lengths),
-        total_len / len(lengths),
-        lengths[0],
-        lengths[-1],
-        read_N50[1],
-        read_N90[1],
-        sep='\t'
-    )
-else:
-    print('''\
+    if args.s:
+        # total_base seq_num mean max min L50 L90
+        print(
+            total_len,
+            len(lengths),
+            round(total_len / len(lengths), 1),
+            lengths[0],
+            lengths[-1],
+            read_N50[1],
+            read_N90[1],
+            sep='\t'
+        )
+    else:
+        print('''\
 input fastq file: {}
 
 minimum length: {}
@@ -101,56 +138,54 @@ total length:   {} ({:.2f} Gbp)
 avg. length:    {:.1f}
 median length:  {:.1f}
 N50:            {}
-N90:            {}
-'''.format(FQ,
-           lengths[-1],
-           lengths[0],
-           len(lengths),
-           total_len, total_len / 10 ** 9,
+N90:            {} '''.format(FIN, lengths[-1], lengths[0], len(lengths), total_len, total_len / 10 ** 9,
            total_len / len(lengths),
            median(lengths),
            read_N50[1],
            read_N90[1]
            ))
-    print('# total_base seq_num mean max min N50 N90')
-    print(
-        total_len,
-        len(lengths),
-        total_len / len(lengths),
-        lengths[0],
-        lengths[-1],
-        read_N50[1],
-        read_N90[1],
-        sep='\t'
-    )
+        print('# total_base seq_num mean max min N50 N90')
+        print(
+            total_len,
+            len(lengths),
+            round(total_len / len(lengths), 1),
+            lengths[0],
+            lengths[-1],
+            read_N50[1],
+            read_N90[1],
+            sep='\t'
+        )
+        print('# Nxx count Nxx_len accu_len')
+        for n, p in enumerate(partitions):
+            print('N{}\t{}\t{}\t{}'.format(int(p*100), read_Nxx[n][0], read_Nxx[n][1], read_Nxx[n][2]))
 
-if args.p:
-    try:
-        import matplotlib as mpl
-        import matplotlib.pyplot as plt
-    except ImportError:
-        raise ImportError('Please install matplotlib to plot histogram.')
-    print('\nPlotting histogram...', file=sys.stderr)
-    out_png = FQ + '.hist.png'
-    plt.hist(lengths, weights=lengths, bins=10**2)
-    plt.axvline(read_N50[1], color='b', linewidth=.5)
-    plt.axvline(read_N90[1], color='b', linewidth=.5)
-    ticks_y = mpl.ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x / 10**6))
-    plt.gca().yaxis.set_major_formatter(ticks_y)
-    ticks_x = mpl.ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x / 10**3))
-    plt.gca().xaxis.set_major_formatter(ticks_x)
-    plt.title(FQ)
-    plt.ylabel('Total bases (Mbp)')
-    plt.xlabel('Read length (Kbp)')
-    t = '''\
-    Total yield = {:.2f} Gbp
-    Max. length = {} bp
-    N50 = {} bp
-    N90 = {} bp'''.format(total_len / 10**9, lengths[0], read_N50[1], read_N90[1])
-    plt.text(0.9, 0.9, t,
-             transform=plt.gca().transAxes,
-             verticalalignment='top',
-             horizontalalignment='right', ma='left')
+    if args.p:
+        try:
+            import matplotlib as mpl
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError('Please install matplotlib to plot histogram.')
+        print('\nPlotting histogram...', file=sys.stderr)
+        out_png = FIN + '.hist.png'
+        plt.hist(lengths, weights=lengths, bins=10**2)
+        plt.axvline(read_N50[1], color='b', linewidth=.5)
+        plt.axvline(read_N90[1], color='b', linewidth=.5)
+        ticks_y = mpl.ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x / 10**6))
+        plt.gca().yaxis.set_major_formatter(ticks_y)
+        ticks_x = mpl.ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x / 10**3))
+        plt.gca().xaxis.set_major_formatter(ticks_x)
+        plt.title(FIN)
+        plt.ylabel('Total bases (Mbp)')
+        plt.xlabel('Read length (Kbp)')
+        t = '''\
+        Total yield = {:.2f} Gbp
+        Max. length = {} bp
+        N50 = {} bp
+        N90 = {} bp'''.format(total_len / 10**9, lengths[0], read_N50[1], read_N90[1])
+        plt.text(0.9, 0.9, t,
+                 transform=plt.gca().transAxes,
+                 verticalalignment='top',
+                 horizontalalignment='right', ma='left')
 
-    plt.savefig(out_png, dpi=300)
-    print('{} generated.'.format(out_png), file=sys.stderr)
+        plt.savefig(out_png, dpi=300)
+        print('{} generated.'.format(out_png), file=sys.stderr)

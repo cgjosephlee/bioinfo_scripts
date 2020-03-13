@@ -21,13 +21,6 @@ import re
 #     else:
 #         print(s[st:], **kwargs)
 
-# def check_format(handle, beginner):
-#     if next(handle).startswith(beginner):
-#         handle.seek(0)
-#         return
-#     else:
-#         raise ValueError('Invalid file format.')
-
 def fastq_get_read_length(fin):
     print('Reading through file...', file=sys.stderr)
     # rec_tot = 0
@@ -74,6 +67,8 @@ def fasta_filter(fin, fout, cutoff):
     rec_flt = 0
     base_tot = 0
     base_flt = 0
+    lengths = []
+
     seq_length = 0
     seq_stored = []
     # first record
@@ -88,6 +83,7 @@ def fasta_filter(fin, fout, cutoff):
         if line.startswith(b'>'):
             if seq_length >= cutoff:
                 fout.write(header)
+                lengths.append(seq_length)
                 for s in seq_stored:
                     fout.write(s)
             else:
@@ -105,18 +101,20 @@ def fasta_filter(fin, fout, cutoff):
     base_tot += seq_length
     if seq_length >= cutoff:
         fout.write(header)
+        lengths.append(seq_length)
         for s in seq_stored:
             fout.write(s)
     else:
         rec_flt += 1
         base_flt += seq_length
-    return rec_tot, rec_flt, base_tot, base_flt
+    return rec_tot, rec_flt, base_tot, base_flt, sorted(lengths, reverse=True)
 
 def fastq_filter(fin, fout, cutoff):
     rec_tot = 0
     rec_flt = 0
     base_tot = 0
     base_flt = 0
+    lengths = []
     try:
         # first record
         for l1 in fin:
@@ -130,6 +128,7 @@ def fastq_filter(fin, fout, cutoff):
                 fout.write(l2)
                 fout.write(next(fin))
                 fout.write(next(fin))
+                lengths.append(len(l2) - 1)
             else:
                 rec_flt += 1
                 base_flt += (len(l2) - 1)
@@ -145,6 +144,7 @@ def fastq_filter(fin, fout, cutoff):
                 fout.write(l2)
                 fout.write(next(fin))
                 fout.write(next(fin))
+                lengths.append(len(l2) - 1)
             else:
                 rec_flt += 1
                 base_flt += (len(l2) - 1)
@@ -152,18 +152,19 @@ def fastq_filter(fin, fout, cutoff):
                 next(fin)  # l4
     except StopIteration:
         raise ValueError('Invalid file format.')
-    return rec_tot, rec_flt, base_tot, base_flt
+    return rec_tot, rec_flt, base_tot, base_flt, sorted(lengths, reverse=True)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Discard sequences shorter than cutoff.')
-    parser.add_argument('fastx', type=str, nargs='?',
-                        help='fasta(q), can be gzipped, leave blank to read from STDIN')
+    parser.add_argument('fastn', type=str,
+                        help='fasta(q), can be gzipped, \'-\' to read from STDIN')
     parser.add_argument('-c', metavar='cutoff', type=int, default=1000,
                         help='length cutoff (1000)')
     parser.add_argument('-o', metavar='file', type=str, default=None,
                         help='output file (AUTO)')
     parser.add_argument('-t', metavar='base', type=int, default=None,
-                        help='descending read lengths and keep this many bases only (require input from file)')
+                        help=argparse.SUPPRESS)
+    # 'descending read lengths and keep this many bases only (require input from file)'
     group1 = parser.add_mutually_exclusive_group(required=True)
     group1.add_argument('--fa', action='store_true',
                         help='fasta format')
@@ -173,28 +174,28 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    fastx = args.fastx
+    FIN = args.fastn
     foutname = args.o
     cutoff = args.c
     targetBase = args.t
-    stdin = False if fastx else True
-    gz = True if fastx and fastx.endswith('.gz') else False
+    is_stdin = True if FIN == '-' else False
+    gz = True if FIN and FIN.endswith('.gz') else False
     if args.fa:
         mode = 'fa'
     elif args.fq:
         mode = 'fq'
 
     # use binary stream
-    if stdin:
+    if is_stdin:
         if targetBase:
             raise IOError('Target base method requires input from file.')
-        print('Reading from stdin.', file=sys.stderr)
-        # fin = sys.stdin.buffer
-        fin = os.fdopen(sys.stdin.fileno(), 'rb', closefd=False)
+        print('Reading from STDIN.', file=sys.stderr)
+        # handle = sys.stdin.buffer
+        handle = os.fdopen(sys.stdin.fileno(), 'rb', closefd=False)
     elif gz:
-        fin = io.BufferedReader(gzip.open(fastx))
+        handle = io.BufferedReader(gzip.open(FIN))
     else:
-        fin = open(fastx, 'rb')
+        handle = open(FIN, 'rb')
 
     if mode == 'fa':
         print('Input is fasta. Cutoff is {}.'.format(cutoff), file=sys.stderr)
@@ -206,15 +207,15 @@ if __name__ == '__main__':
             # todo
             sys.exit(99)
         elif mode == 'fq':
-            cutoff = cal_new_cutoff(fastq_get_read_length(fin), cutoff, targetBase)
-        fin.seek(0)
+            cutoff = cal_new_cutoff(fastq_get_read_length(handle), cutoff, targetBase)
+        handle.seek(0)
 
     if foutname:
         fout = open(foutname, 'wb')
-    elif stdin:
+    elif is_stdin:
         fout = os.fdopen(sys.stdout.fileno(), 'wb', closefd=False)
     else:
-        foutname = re.sub('.fa$|.fa.gz$|.fasta$|.fasta.gz$|.fq$|.fq.gz$|.fastq$|.fastq.gz$', '', fastx)
+        foutname = re.sub('.fa$|.fa.gz$|.fasta$|.fasta.gz$|.fq$|.fq.gz$|.fastq$|.fastq.gz$', '', FIN)
         if mode == 'fa':
             foutname = '{}.min{}.fa'.format(foutname, cutoff)
         elif mode == 'fq':
@@ -222,15 +223,42 @@ if __name__ == '__main__':
         fout = open(foutname, 'wb')
 
     if mode == 'fa':
-        rec_tot, rec_flt, base_tot, base_flt = fasta_filter(fin, fout, cutoff)
+        rec_tot, rec_flt, base_tot, base_flt, lengths = fasta_filter(handle, fout, cutoff)
     elif mode == 'fq':
-        rec_tot, rec_flt, base_tot, base_flt = fastq_filter(fin, fout, cutoff)
-
-    # finish!
-    fin.close()
+        rec_tot, rec_flt, base_tot, base_flt, lengths = fastq_filter(handle, fout, cutoff)
+    handle.close()
     fout.close()
+
+    # left reads
+    total_len = sum(lengths)
+    total_len_50 = total_len * 0.5
+    total_len_90 = total_len * 0.9
+    read_N50 = None
+    read_N90 = None
+    accu_len = 0
+
+    for n, v in enumerate(lengths, 1):
+        accu_len += v
+        if not read_N50 and accu_len > total_len_50:
+            read_N50 = (n, v)
+        if not read_N90 and accu_len > total_len_90:
+            read_N90 = (n, v)
+            break
+
     print('Finish!', file=sys.stderr)
-    if not stdin:
+    if not is_stdin:
         print('{} generated.'.format(foutname), file=sys.stderr)
     print('{}/{} ({:.2%}) records are discarded.'.format(rec_flt, rec_tot, rec_flt / rec_tot), file=sys.stderr)
     print('{}/{} ({:.2%}) bases are discarded.'.format(base_flt, base_tot, base_flt / base_tot), file=sys.stderr)
+    print('# total_base seq_num mean max min N50 N90', file=sys.stderr)
+    print(
+        total_len,
+        len(lengths),
+        round(total_len / len(lengths), 1),
+        lengths[0],
+        lengths[-1],
+        read_N50[1],
+        read_N90[1],
+        sep='\t',
+        file=sys.stderr
+    )
