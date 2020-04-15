@@ -25,11 +25,13 @@ parser.add_argument('fast5',
 parser.add_argument('--fast5-prefix', action='store_true',
                     help='{flow_cell_id}_{run_id}')
 parser.add_argument('--dir-prefix', action='store_true',
-                    help='{yyyymmdd}_{hhmm}_{device_id}_{flow_cell_id}_{protocol_run_id:1:8} (timestamp might not be concordant.)')
+                    help='{yyyymmdd}_{hhmm}_{device_id}_{flow_cell_id}_{protocol_run_id:1:8} (timestamp might be skewed.)')
 parser.add_argument('--is-multi', action='store_true',
                     help='is multi fast5')
 parser.add_argument('--is-vbz', action='store_true',
                     help='is vbz compressed')
+parser.add_argument('--read-id', action='store_true',
+                    help='print read ids in fast5 file')
 args = parser.parse_args()
 
 in_f5 = next(yield_fast5_files(args.fast5, True, True))  # grab one file only, maybe the oldest one
@@ -37,6 +39,7 @@ print('INPUT: {}'.format(in_f5), file=sys.stderr)
 
 MULTI = False
 VBZ = False
+READ_ID = []
 RET = 0
 n = 0
 
@@ -57,6 +60,7 @@ if is_multi_read(in_f5):
         WARNED_FC = False
         WARNED_RUN = False
         for r in h.get_reads():  # alway iter from first one even I have used next()?
+            READ_ID.append(r.get_read_id())
             t = r.get_tracking_id()
             if t['flow_cell_id'] != FC and not WARNED_FC:
                 print('WARN: Contain multiple flow-cells.', file=sys.stderr)
@@ -75,15 +79,18 @@ else:
         COMPRESS = read.raw_compression_filters
         if '32020' in COMPRESS.keys():
             VBZ = True
+        READ_ID.append(read.get_read_id())
         n = 1
 
-METADATA = {'is_multi': MULTI,
-            'read_per_fast5': n,
-            'is_vbz': VBZ,
-            'compression': COMPRESS,
-            **TRACK,
-            **CHANNEL,
-            **CONTEXT}
+METADATA = {
+    'is_multi': MULTI,
+    'read_per_fast5': n,
+    'is_vbz': VBZ,
+    'compression': COMPRESS,
+    **TRACK,
+    **CHANNEL,
+    **CONTEXT
+}
 
 if args.fast5_prefix:
     print('{}_{}'.format(METADATA['flow_cell_id'], METADATA['run_id']))
@@ -99,6 +106,8 @@ elif args.is_multi:
     print(return_bool(METADATA['is_multi']))
 elif args.is_vbz:
     print(return_bool(METADATA['is_vbz']))
+elif args.read_id:
+    print('\n'.join(READ_ID))
 else:
     print(json.dumps(METADATA, indent=2))
 

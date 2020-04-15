@@ -39,6 +39,7 @@ if __name__ == '__main__':
     total_N = sum([x[1] for x in filter(lambda x: x[0] in titles_pass, Ns.items())])
     total_seqs = len(lengths)
 
+    auN = sum([x[1]**2 for x in lengths]) / total_len
     total_len_50 = total_len * 0.5
     total_len_90 = total_len * 0.9
     ctg_N50 = None
@@ -108,6 +109,7 @@ L50: {} ({})
 N50: {}
 L90: {} ({})
 N90: {}
+auN: {:.3f}
 '''.format(args.fasta,
            cutoff,
            lengths[-1][1], lengths[-1][0],
@@ -121,7 +123,8 @@ N90: {}
            ctg_N50[0], ctg_N50[1],
            ctg_N50[2],
            ctg_N90[0], ctg_N90[1],
-           ctg_N90[2]
+           ctg_N90[2],
+           auN
            ))
 
         print('''\
