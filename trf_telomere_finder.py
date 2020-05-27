@@ -47,7 +47,9 @@ col 14:    Consensus sequence
 col 15:    Repeat sequence
 '''
 def parse_trf_output(handle, ctg_len,
-                     min_copy_number=5, min_repeat_len=4, search_window=5000,
+                     min_copy_number=5, max_copy_number=10000,
+                     min_repeat_len=4, max_repeat_len=10,
+                     search_window=5000,
                      repeat_seq=None, silent=False):
     FoundInSTART = set()
     FoundInEND = set()
@@ -64,7 +66,10 @@ def parse_trf_output(handle, ctg_len,
                 continue
             line = line.split()
             # filter copy number and repeat consensus size
-            if float(line[3]) < min_copy_number or int(line[2]) < min_repeat_len:
+            if float(line[3]) < min_copy_number or \
+               float(line[3]) > max_copy_number or \
+               int(line[2]) < min_repeat_len or \
+               int(line[2]) > max_repeat_len:
                 continue
 
             if repeat_seq and not repeat_seq.match(line[13]):
@@ -100,16 +105,18 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Find telomeric sequences.')
     parser.add_argument('fasta',
                         help='fasta')
-    parser.add_argument('-f', action='store_true',
-                        help='force redo')
     parser.add_argument('-r', type=str, metavar='repeat', default=None,
-                        help='user provided sequence to match telomeric sequences (only return matched)')
+                        help='user provided sequence to match telomeric sequences')
     parser.add_argument('--window', type=int, default=5000, metavar='',
-                        help='size of terminal window (5000)')
+                        help='size of terminal window (%(default)s)')
     parser.add_argument('--min_copy_number', type=int, default=5, metavar='',
-                        help='minimal copy numbers (5)')
-    parser.add_argument('--min_repeat_len', type=int, default=4, metavar='',
-                        help='minimal repeat length (4)')
+                        help='minimal copy numbers (%(default)s)')
+    parser.add_argument('--min_repeat_len', type=int, default=5, metavar='',
+                        help='minimal repeat length (%(default)s)')
+    parser.add_argument('--max_repeat_len', type=int, default=10, metavar='',
+                        help='maximal repeat length (%(default)s)')
+    parser.add_argument('--redo', action='store_true',
+                        help='force redo')
     return parser.parse_args()
 
 def main():
@@ -119,6 +126,7 @@ def main():
     search_window = args.window
     min_copy_number = args.min_copy_number
     min_repeat_len = args.min_repeat_len
+    max_repeat_len = args.max_repeat_len
     trf_opt = [2, 7, 7, 80, 10, 50, 500]  # default
 
     if repeat_seq:
@@ -128,7 +136,7 @@ def main():
 
     # run samtools faidx
     fa_idx = in_fa + '.fai'
-    if args.f or not os.path.isfile(fa_idx):
+    if args.redo or not os.path.isfile(fa_idx):
         print('Building index...', file=sys.stderr)
         cmd = ['samtools', 'faidx', in_fa]
         subprocess.run(cmd, check=True)
@@ -136,7 +144,7 @@ def main():
     # run trf
     trf_opt = [str(x) for x in trf_opt]
     trf_out = '{}.{}.dat'.format(in_fa, '.'.join(trf_opt))
-    if args.f or not os.path.isfile(trf_out):
+    if args.redo or not os.path.isfile(trf_out):
         print('Running trf...', file=sys.stderr)
         cmd = ['trf', in_fa] + trf_opt + ['-h', '-ngs']
         with open(trf_out, 'w') as f:
@@ -148,9 +156,12 @@ def main():
 
     # parse trf output
     with open(trf_out) as f:
-        FoundInSTART, FoundInEND, FoundInMID = parse_trf_output(f, ctg_len,
-                                                                min_copy_number, min_repeat_len, search_window,
-                                                                repeat_seq)
+        FoundInSTART, FoundInEND, FoundInMID = parse_trf_output(
+            f, ctg_len,
+            min_copy_number=min_copy_number,
+            min_repeat_len=min_repeat_len, max_repeat_len=max_repeat_len,
+            search_window=search_window,
+            repeat_seq=repeat_seq)
 
     if match_mode:
         FoundInBoth = FoundInSTART.intersection(FoundInEND)

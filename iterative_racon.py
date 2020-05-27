@@ -41,6 +41,18 @@ MINIMAP_format = args.minimap2_format
 MINIMAP_preset = args.minimap2_preset
 MINIMAP_opts = args.minimap2_opts.split()
 
+# check program
+# racon
+cmd = [RACON, '--version']
+p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT)
+out, err = p.communicate()
+print('racon    {}'.format(out.decode().strip()[1:]), file=sys.stderr)
+# minimap2
+cmd = [MINIMAP, '--version']
+p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT)
+out, err = p.communicate()
+print('minimap2 {}'.format(out.decode().strip()), file=sys.stderr)
+
 fa_base = args.fasta
 fq = args.fq
 if not args.p:

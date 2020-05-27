@@ -33,6 +33,7 @@ group2 = parser.add_mutually_exclusive_group()
 group2.add_argument('-n', help='default mode (match ID before first space)', action='store_true')
 group2.add_argument('-p', help='enable perfect match mode', action='store_true')
 group2.add_argument('-r', help='enable regular expression mode', action='store_true')
+parser.add_argument('--dry', help='don\'t run', action='store_true')
 
 args = parser.parse_args()
 
@@ -70,11 +71,20 @@ else:
 
 print('{} items in list.'.format(len(filter_list)), file=sys.stderr)
 
-with open(fin) as f:
-    for line in f:
-        if line.startswith('>'):
-            p = filter_or_not(line.strip()[1:], filter_list, include_mode, filter_mode)
-            if p:
+if args.dry:
+    print('Matched items:', file=sys.stderr)
+    with open(fin) as f:
+        for line in f:
+            if line.startswith('>'):
+                p = filter_or_not(line.strip()[1:], filter_list, include_mode, filter_mode)
+                if p:
+                    print(line.strip()[1:])
+else:
+    with open(fin) as f:
+        for line in f:
+            if line.startswith('>'):
+                p = filter_or_not(line.strip()[1:], filter_list, include_mode, filter_mode)
+                if p:
+                    print(line, end='')
+            elif p:
                 print(line, end='')
-        elif p:
-            print(line, end='')
