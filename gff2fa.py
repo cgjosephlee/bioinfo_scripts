@@ -45,8 +45,9 @@ def get_qualifier(s):
     q = {}
     s = s.split(';')
     for f in s:
-        f = f.split('=')
-        q[f[0]] = f[1]
+        if f:
+            f = f.split('=')
+            q[f[0]] = f[1]
     return q
 
 

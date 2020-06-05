@@ -91,29 +91,13 @@ if __name__ == '__main__':
     accu_len = 0
     n = 0
     for current_threshold in thresholds:
-        while 1:
-            accu_len += lengths[n]
-            if accu_len > current_threshold:
-                read_Nxx.append((n + 1, lengths[n], accu_len))
-                n += 1
-                break
-            n += 1
+        while accu_len < current_threshold:
+            n += 1  # count
+            accu_len += lengths[n-1]  # index
+        read_Nxx.append((n, lengths[n-1], accu_len))
 
     read_N50 = read_Nxx[8]
     read_N90 = read_Nxx[16]
-
-    # total_len_50 = total_len * 0.5
-    # total_len_90 = total_len * 0.9
-    # read_N50 = None
-    # read_N90 = None
-    # accu_len = 0
-    # for n, v in enumerate(lengths, 1):
-    #     accu_len += v
-    #     if not read_N50 and accu_len > total_len_50:
-    #         read_N50 = (n, v)
-    #     if not read_N90 and accu_len > total_len_90:
-    #         read_N90 = (n, v)
-    #         break
 
     if args.s:
         # total_base seq_num mean max min L50 L90
