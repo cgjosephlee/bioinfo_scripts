@@ -170,9 +170,9 @@ def main():
         print('Found in both ends : {}\n'
               'Found in single end: {}\n'
               'Found in interval  : {}'.format(len(FoundInBoth), len(FoundInSingle), len(FoundInMID)))
-        print(sorted(FoundInBoth))
-        print(sorted(FoundInSingle))
-        print(sorted(FoundInMID))
+        print('B: ' + ','.join(sorted(FoundInBoth)))
+        print('S: ' + ','.join(sorted(FoundInSingle)))
+        print('I: ' + ','.join(sorted(FoundInMID)))
 
 if __name__ == '__main__':
     main()
