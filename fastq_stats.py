@@ -6,44 +6,67 @@ import gzip
 import argparse
 from statistics import median
 
-# def check_format(handle, beginner):
-#     if next(handle).startswith(beginner):
-#         handle.seek(0)
-#         return
-#     else:
-#         raise ValueError('Invalid file format.')
+# try new method, but slower QQ
+# def get_read_length(handle):
+#     lengths = []
+#     readLen = 0
+#     last = None
+#     while True:
+#         if not last:
+#             for line in handle:
+#                 if line[0] in b'>@':
+#                     last = line
+#                     break
+#         if not last: break
+#         last = None
+#         for line in handle:  read sequence
+#             if line.startswith((b'@', b'+', b'>')):
+#                 last = line
+#                 break
+#             readLen += (len(line)-1)
+#         if not last or not last.startswith(b'+'):  this is fasta
+#             lengths.append(readLen)
+#             readLen = 0
+#             if not last: break
+#         else:  this is fastq
+#             try:
+#                 next(handle)  ignore qual line
+#             except StopIteration:  EOF
+#                 print('what?')
+#                 raise
+#     return sorted(lengths, reverse=True)
 
-def get_read_length(handle, type='fq'):
+def get_read_length(handle):
     lengths = []
+    type = None
+    for line in handle:
+        if line.startswith(b'@'):
+            lengths.append(len(next(handle)) - 1)
+            next(handle)
+            next(handle)
+            type = 'fq'
+            break
+        elif line.startswith(b'>'):
+            lengths.append(0)
+            type = 'fa'
+            break
     if type == 'fq':
         try:
-            # first record
-            for l1 in handle:
-                if not l1.startswith(b'@'):
-                    raise ValueError('Invalid file format.')
-                lengths.append(len(next(handle)) - 1)  # l2
-                next(handle)  # l3
-                next(handle)  # l4
-                break
-            for l1 in handle:
+            for line in handle:  # l1
                 lengths.append(len(next(handle)) - 1)  # l2
                 next(handle)  # l3
                 next(handle)  # l4
         except StopIteration:
-            raise ValueError('Invalid file format.')
+            print(line)
+            raise StopIteration('Broken file?')
     elif type == 'fa':
-        # first line
-        for line in handle:
-            if line.startswith(b'>'):
-                lengths.append(0)
-                break
-            else:
-                raise ValueError('Invalid file format.')
         for line in handle:
             if line.startswith(b'>'):
                 lengths.append(0)
             else:
                 lengths[-1] += len(line.rstrip())
+    else:
+        raise OSError('Empty file?')
     return sorted(lengths, reverse=True)
 
 def parse_args():
@@ -56,8 +79,6 @@ def parse_args():
                         help='plot histogram (require matplotlib)')
     parser.add_argument('-s', action='store_true',
                         help='print single line format')
-    parser.add_argument('--fa', action='store_true',
-                        help='support fasta formatted read file')
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -74,10 +95,7 @@ if __name__ == '__main__':
     else:
         handle = open(FIN, 'rb')
 
-    if args.fa:
-        lengths = get_read_length(handle, 'fa')
-    else:
-        lengths = get_read_length(handle, 'fq')
+    lengths = get_read_length(handle)
     handle.close()
 
     if cutoff != 0:
