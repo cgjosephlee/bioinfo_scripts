@@ -99,7 +99,7 @@ if __name__ == '__main__':
     handle.close()
 
     if cutoff != 0:
-        lengths = [x for x in lengths if x > cutoff]
+        lengths = [x for x in lengths if x >= cutoff]
 
     # calculate N10-N90
     total_len = sum(lengths)

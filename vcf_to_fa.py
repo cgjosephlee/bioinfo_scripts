@@ -40,8 +40,9 @@ else:
 IGNORE_PHASING = False
 HAPLOTYPE = None
 if args.haplotype == 0:
+    # result might be different if one use phased vcf, because I select allele by string index
     IGNORE_PHASING = True
-    raise NotImplementedError('Just don\'t phase.')
+    print('Ignore phasing information.', file=sys.stderr)
 elif args.haplotype == 1:
     HAPLOTYPE = 0  # 0: H1, 2: H2, index of string 'A|G'
 elif args.haplotype == 2:
@@ -159,7 +160,7 @@ for line in handle:
         elif g[0] == g[2]:
             tmp_str += base[g[0]]
         # phased HET
-        elif g[1] == '|':
+        elif g[1] == '|' and not IGNORE_PHASING:
             tmp_str += base[g[HAPLOTYPE]]
         # unphased HET
         elif g[0] != g[2]:
