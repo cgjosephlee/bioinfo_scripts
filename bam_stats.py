@@ -93,12 +93,12 @@ if __name__ == '__main__':
             if f.is_supplementary:
                 supplementary += v
 
-    p_mapped = mapped / total
-    p_proper_paired = proper_paired / total
-    p_fw_strand = fw_strand / total
-    p_rv_strand = rv_strand / total
-    p_duplicate = duplicate / total
-    p_failQC = failQC / total
+    p_mapped        = round(mapped / total, 6)
+    p_proper_paired = round(proper_paired / total, 6)
+    p_fw_strand     = round(fw_strand / total, 6)
+    p_rv_strand     = round(rv_strand / total, 6)
+    p_duplicate     = round(duplicate / total, 6)
+    p_failQC        = round(failQC / total, 6)
 
     if args.s:
         # total_reads secondary supplementary mapped_reads mapped_ratio proper_paired proper_paired_ratio fw_strand fw_ratio rv_strand rv_ratio duplicated duplicated_ratio failQC failQC_ratio

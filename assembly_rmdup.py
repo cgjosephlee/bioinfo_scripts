@@ -11,7 +11,7 @@ parser.add_argument('fasta', type=str,
                     help='fasta file')
 parser.add_argument('-t', type=int, default=8,
                     help='threads')
-parser.add_argument('--prog', type=str, choices=['nucmer', 'minimap'], default='nucmer',
+parser.add_argument('--prog', type=str, choices=['nucmer', 'minimap2'], default='minimap2',
                     help='program')
 parser.add_argument('--min-identity', type=float, default=.98,
                     help='0-1 (%(default)s)')
@@ -51,11 +51,11 @@ if prog == 'nucmer':
                 if id > min_id and cov > min_cov:
                     print('\t'.join(line[:-1]))
                     excluded_seqs.append(line[-2])
-elif prog == 'minimap':
+elif prog == 'minimap2':
     # https://lh3.github.io/minimap2/minimap2.html
     # https://github.com/lh3/minimap2/blob/master/cookbook.md#constructing-self-homology-map
     if not os.path.isfile('{}.paf'.format(in_fa)) or args.redo:
-        print('Running minimap...', file=sys.stderr)
+        print('Running minimap2...', file=sys.stderr)
         # asm20 = -k19 -w10 -A1 -B4 -O6,26 -E2,1 -s200 -z200 -N50 --min-occ-floor=100
         # cmd = 'minimap2 -t {1} -D -x asm20 --cs {0} {0} > {0}.paf'.format(in_fa, threads)
         cmd = 'minimap2 -t {1} -DP -k19 -w19 -m900 --cs {0} {0} > {0}.paf'.format(in_fa, threads)
@@ -100,7 +100,8 @@ if not args.dry:
                     print(line, end='', file=fout)
     else:
         print('Nothing to remove, make a soft link.', file=sys.stderr)
-        sp.run(['ln', '-snf', in_fa, out_fa], check=True)
+        in_fa_base = os.path.basename(in_fa)
+        sp.run(['ln', '-snf', in_fa_base, out_fa], check=True)
 else:
     print('Removing {} sequences.'.format(len(excluded_seqs)), file=sys.stderr)
     print(excluded_seqs, file=sys.stderr)

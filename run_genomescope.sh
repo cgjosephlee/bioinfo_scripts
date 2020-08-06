@@ -3,13 +3,15 @@ set -e
 
 fof=$1
 prefix=$2
+k=21
 thread=8
+mem=64  # GB
 
 mkdir -p tmp
-kmc -k21 -t${thread} -m256 -ci1 -cs10000 @${fof} ${prefix}_freq tmp/
+kmc -k${k} -t${thread} -m${mem} -ci1 -cs10000 @${fof} ${prefix}_freq tmp/
 kmc_tools transform ${prefix}_freq histogram ${prefix}_hist -cx10000
 
-genomescope.R -i ${prefix}_hist -o . -p 2 -n ${prefix}_genomescope
+genomescope.R -k ${k} -i ${prefix}_hist -o . -p 2 -n ${prefix}_genomescope
 
 L=$(smudgeplot.py cutoff ${prefix}_hist L)
 U=$(smudgeplot.py cutoff ${prefix}_hist U)
