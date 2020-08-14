@@ -86,6 +86,13 @@ if __name__ == '__main__':
     FIN = args.fastq
     cutoff = args.c
 
+    if args.p:
+        try:
+            import matplotlib as mpl
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError('Please install matplotlib to plot histogram.')
+
     is_stdin = True if FIN == '-' else False
     is_gzipped = True if FIN.endswith('.gz') else False
     if is_stdin:
@@ -162,11 +169,6 @@ N90:            {} '''.format(FIN, lengths[-1], lengths[0], len(lengths), total_
             print('N{}\t{}\t{}\t{}'.format(int(p*100), read_Nxx[n][0], read_Nxx[n][1], read_Nxx[n][2]))
 
     if args.p:
-        try:
-            import matplotlib as mpl
-            import matplotlib.pyplot as plt
-        except ImportError:
-            raise ImportError('Please install matplotlib to plot histogram.')
         print('\nPlotting histogram...', file=sys.stderr)
         out_png = FIN + '.hist.png'
         plt.hist(lengths, weights=lengths, bins=10**2)

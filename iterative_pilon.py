@@ -6,6 +6,7 @@ Require:
     java 8
     pilon
     bwa/smalt
+    samblaster
     samtools
 '''
 
@@ -25,21 +26,50 @@ parser.add_argument('-m', type=int, help='max mem for java in Gb (%(default)s)',
 parser.add_argument('-i', type=int, help='number of iterations (%(default)s)', default=5)
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
 parser.add_argument('-t', type=int, help='threads (%(default)s)', default=20)
-parser.add_argument('--aligner', type=str, help='bwa or smalt (%(default)s)', default='bwa')
+parser.add_argument('--aligner', type=str, help='bwa, bwa2 or smalt (%(default)s)', default='bwa')
+parser.add_argument('--exec', type=str, help='path of aligner executable')
 args = parser.parse_args()
 
 fa_base = args.fasta
-fq1 = args.fq1
-fq2 = args.fq2
+fq1 = os.path.realpath(args.fq1)
+fq2 = os.path.realpath(args.fq2)
 pilon_jar = args.j
-aligner = args.aligner
 maxMem = args.m
-if not args.p:
+iter_n = args.i
+prefix = args.p
+threads = args.t
+aligner = args.aligner
+exec = args.exec
+
+if not fa_base == os.path.basename(fa_base):
+    os.chdir(os.path.dirname(fa_base))
+    fa_base = os.path.basename(fa_base)
+if not exec:
+    # assuming in $path
+    if aligner == 'bwa':
+        exec = 'bwa'
+    elif aligner == 'bwa2':
+        exec = 'bwa-mem2'
+    elif aligner == 'smalt':
+        exec = 'smalt'
+if not prefix:
     prefix = re.sub('.fa$|.fasta$', '', os.path.basename(fa_base)) + '_pilon'
 else:
     prefix = args.p
-iter_n = args.i
-threads = args.t
+
+# check program
+def check_prog(cmd):
+    p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT)
+    o = p.communicate()[0]
+    if p.returncode == 127:
+        print(o.decode(), file=sys.stderr)
+        raise FileNotFoundError()
+    else:
+        return o.decode()
+# java? pilon?
+o = check_prog([exec])
+o = check_prog(['samblaster', '-h'])
+o = check_prog(['samtools'])
 
 fa_out = fa_base
 for n in range(iter_n):
@@ -56,12 +86,16 @@ for n in range(iter_n):
     with open('pilon.{}.log'.format(fa_out), 'w') as ERR:
         if not os.path.isfile(fa_out + '.bam'):
             if aligner == 'bwa':
-                sp.run(['bwa', 'index', fa_in], check=True, stderr=ERR)
-                sp.run('bwa mem -v 1 -t {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run([exec, 'index', fa_in], check=True, stderr=ERR)
+                sp.run('{} mem -v 1 -t {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
                 sp.run('rm {0}.amb {0}.ann {0}.bwt {0}.pac {0}.sa'.format(fa_in), shell=True, check=True)
+            elif aligner == 'bwa2':
+                sp.run([exec, 'index', fa_in], check=True, stdout=ERR, stderr=sp.STDOUT)
+                sp.run('{} mem -v 1 -t {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('rm {0}.0123 {0}.amb {0}.ann {0}.bwt.2bit.64 {0}.bwt.8bit.32 {0}.pac'.format(fa_in), shell=True, check=True)
             elif aligner == 'smalt':
-                sp.run('smalt index {0} {0}'.format(fa_in), shell=True, check=True, stderr=ERR)
-                sp.run('smalt map -n {} {} {} {} | samtools sort -@ {} -O bam -o {}.bam -'.format(threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('{0} index {1} {1}'.format(exec, fa_in), shell=True, check=True, stderr=ERR)
+                sp.run('{} map -n {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
                 sp.run('rm {0}.sma {0}.smi'.format(fa_in), shell=True, check=True)
             sp.run('samtools index {}.bam'.format(fa_out), shell=True, check=True, stderr=ERR)
 
