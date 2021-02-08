@@ -86,13 +86,13 @@ for n in range(iter_n):
     with open('pilon.{}.log'.format(fa_out), 'w') as ERR:
         if not os.path.isfile(fa_out + '.bam'):
             if aligner == 'bwa':
-                sp.run([exec, 'index', fa_in], check=True, stderr=ERR)
-                sp.run('{} mem -v 1 -t {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
-                sp.run('rm {0}.amb {0}.ann {0}.bwt {0}.pac {0}.sa'.format(fa_in), shell=True, check=True)
+                sp.run([exec, 'index', '-p', fa_in + '.bwa1', fa_in], check=True, stderr=ERR)
+                sp.run('{} mem -v 1 -t {} {}.bwa1 {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('rm {}.bwa1*'.format(fa_in), shell=True, check=True)
             elif aligner == 'bwa2':
-                sp.run([exec, 'index', fa_in], check=True, stdout=ERR, stderr=sp.STDOUT)
-                sp.run('{} mem -v 1 -t {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
-                sp.run('rm {0}.0123 {0}.amb {0}.ann {0}.bwt.2bit.64 {0}.bwt.8bit.32 {0}.pac'.format(fa_in), shell=True, check=True)
+                sp.run([exec, 'index', '-p', fa_in + '.bwa2', fa_in], check=True, stdout=ERR, stderr=sp.STDOUT)
+                sp.run('{} mem -v 1 -t {} {}.bwa2 {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('rm {}.bwa2*'.format(fa_in), shell=True, check=True)
             elif aligner == 'smalt':
                 sp.run('{0} index {1} {1}'.format(exec, fa_in), shell=True, check=True, stderr=ERR)
                 sp.run('{} map -n {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)

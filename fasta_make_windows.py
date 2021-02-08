@@ -21,6 +21,8 @@ w = args.w
 o = args.o
 s = args.w - args.o
 m = args.m
+assert w > o
+assert w > m
 
 handle = open(args.faidx)
 for line in handle:
