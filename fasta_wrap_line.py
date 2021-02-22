@@ -42,8 +42,10 @@ def print_wrapped(s, wrap=80, **kwargs):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='wrap or unwrap fasta (to stdout)')
-    parser.add_argument('fasta', nargs='?', type=str, default=sys.stdin,
-                        help='fasta file (default=stdin)')
+    # parser.add_argument('fasta', nargs='?', type=str, default=sys.stdin,
+    #                     help='fasta file (default=stdin)')
+    parser.add_argument('fasta', type=str,
+                        help='fasta file ("-" to read stdin)')
     parser.add_argument('-n', type=int, default=80,
                         help='wrap by N characters (default=80, set 0 to unwrap)')
     parser.add_argument('-i', action='store_true',
@@ -53,7 +55,11 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     n = args.n
-    FIN = args.fasta
+
+    if args.fasta == '-':
+        FIN = sys.stdin
+    else:
+        FIN = args.fasta
 
     if FIN != sys.stdin and args.i:
         os.rename(FIN, FIN + '.bak')
@@ -70,5 +76,6 @@ if __name__ == '__main__':
         print('>' + rec[0], file=FOUT)
         print_wrapped(rec[1], wrap=n, file=FOUT)
 
-    FIN.close()
     FOUT.close()
+    if FIN != sys.stdin:
+        FIN.close()
