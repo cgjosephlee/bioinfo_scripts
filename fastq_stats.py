@@ -5,6 +5,7 @@ import io
 import gzip
 import argparse
 from statistics import median
+import math
 
 # try new method, but slower QQ
 # def get_read_length(handle):
@@ -69,12 +70,67 @@ def get_read_length(handle):
         raise OSError('Empty file?')
     return sorted(lengths, reverse=True)
 
+def phred_error_rate(phred=33):
+    if phred == 33:
+        code = b'''!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~'''
+    elif phred == 64:
+        code = b'''@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghi'''
+    d = {}
+    for q, p in enumerate(code):
+        d[p] = 10**(q/-10)
+    return d
+
+def cal_meadQ(qual):
+    rate = phred_error_rate()
+    return -10*math.log(sum([rate[x] for x in qual.strip()]) / len(qual.strip()), 10)
+
+# def cal_meadQ(qual):
+#     '''
+#     extremely slow...
+#     '''
+#     return -10*math.log(sum([10**((x-33)/-10) for x in qual.strip()]) / len(qual.strip()), 10)
+
+def get_read_length_and_quality(handle):
+    lengths = []
+    mean_quals = []
+    type = None
+    for line in handle:
+        if line.startswith(b'@'):
+            lengths.append(len(next(handle)) - 1)
+            next(handle)
+            next(handle)
+            type = 'fq'
+            break
+        elif line.startswith(b'>'):
+            lengths.append(0)
+            type = 'fa'
+            break
+    if type == 'fq':
+        try:
+            for line in handle:  # l1
+                lengths.append(len(next(handle)) - 1)  # l2
+                next(handle)  # l3
+                mean_quals.append(cal_meadQ(next(handle)))  # l4
+        except StopIteration:
+            print(line)
+            raise StopIteration('Broken file?')
+        except:
+            print(line)
+            raise
+    elif type == 'fa':
+        raise OSError('FASTA do not support Q scores.')
+    else:
+        raise OSError('Empty file?')
+    return sorted(lengths, reverse=True), mean_quals
+
 def parse_args():
     parser = argparse.ArgumentParser(description='fastq statistics for long reads')
     parser.add_argument('fastq',
                         help='fastq file, \'-\' to read from STDIN')
     parser.add_argument('-c', metavar='cutoff', type=int, default=0,
                         help='minimun length cutoff (0)')
+    parser.add_argument('-q', action='store_true',
+                        help='calculate mead Q stats (slow!)')
     parser.add_argument('-p', action='store_true',
                         help='plot histogram (require matplotlib)')
     parser.add_argument('-s', action='store_true',
@@ -102,7 +158,10 @@ if __name__ == '__main__':
     else:
         handle = open(FIN, 'rb')
 
-    lengths = get_read_length(handle)
+    if args.q:
+        lengths, mean_quals = get_read_length_and_quality(handle)
+    else:
+        lengths = get_read_length(handle)
     handle.close()
 
     if cutoff != 0:
@@ -123,6 +182,20 @@ if __name__ == '__main__':
 
     read_N50 = read_Nxx[8]
     read_N90 = read_Nxx[16]
+
+    # calculate mean Q stats
+    if args.q:
+        # partitions_q = [7, 10, 20]
+        Q7 = 0
+        Q10 = 0
+        Q20 = 0
+        for q in mean_quals:
+            if q >= 7.0:
+                Q7 += 1
+            if q >= 10.0:
+                Q10 += 1
+            if q >= 20.0:
+                Q20 += 1
 
     if args.s:
         # total_base seq_num mean max min L50 L90
@@ -153,6 +226,7 @@ N90:            {} '''.format(FIN, lengths[-1], lengths[0], len(lengths), total_
            read_N50[1],
            read_N90[1]
            ))
+        print()
         print('# total_base seq_num mean max min N50 N90')
         print(
             total_len,
@@ -164,9 +238,16 @@ N90:            {} '''.format(FIN, lengths[-1], lengths[0], len(lengths), total_
             read_N90[1],
             sep='\t'
         )
+        print()
         print('# Nxx count Nxx_len accu_len')
         for n, p in enumerate(partitions):
             print('N{}\t{}\t{}\t{}'.format(int(p*100), read_Nxx[n][0], read_Nxx[n][1], read_Nxx[n][2]))
+        if args.q:
+            print()
+            print('# quality stats')
+            print(f'Q>20: {Q20}')
+            print(f'Q>10: {Q10}')
+            print(f'Q> 7: {Q7}')
 
     if args.p:
         print('\nPlotting histogram...', file=sys.stderr)

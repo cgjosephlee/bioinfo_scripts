@@ -2,12 +2,13 @@
 '''
 HiSeq X Ten and NovaSeq: 2, 12, 23 and 37 ('#', ',', ':', 'F')
 
-from wiki:
+from wiki (https://en.wikipedia.org/wiki/FASTQ_format#Encoding):
   SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.....................................................
   ..........................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX......................
   ...............................IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII......................
   .................................JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ.....................
   LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL....................................................
+  PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
   !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
   |                         |    |        |                              |                     |
  33                        59   64       73                            104                   126
@@ -16,14 +17,13 @@ from wiki:
                                  0........9.............................40
                                     3.....9..............................41
   0.2......................26...31........41
-
+  0..................20........30........40........50..........................................93
  S - Sanger        Phred+33,  raw reads typically (0, 40)
  X - Solexa        Solexa+64, raw reads typically (-5, 40)
  I - Illumina 1.3+ Phred+64,  raw reads typically (0, 40)
  J - Illumina 1.5+ Phred+64,  raw reads typically (3, 41)
-     with 0=unused, 1=unused, 2=Read Segment Quality Control Indicator (bold)
-     (Note: See discussion above).
  L - Illumina 1.8+ Phred+33,  raw reads typically (0, 41)
+ P - PacBio        Phred+33,  HiFi reads typically (0, 93)
 '''
 
 import sys
