@@ -1,0 +1,20 @@
+#!/usr/bin/expect -f
+
+package require yaml
+
+set config [yaml::yaml2dict -file "~/twnia_key.yml"]
+set PW [dict get $config pw]
+set OTPKEY [dict get $config otpkey]
+set OTP [exec python -c "import pyotp; print(pyotp.TOTP(\"$OTPKEY\").now())"]
+set HOST [lindex $argv 0]
+set timeout -1
+
+# puts $HOST
+# puts $OTP
+
+spawn ssh $HOST
+expect "assword:"
+send -- "$PW\r"
+expect "OTP:"
+send -- "$OTP\r"
+interact
