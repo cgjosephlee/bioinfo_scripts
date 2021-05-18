@@ -46,6 +46,8 @@ Use this script to perform all-vs-all pairwise alignment:
                         help='input file format [f: pre-aligned fasta; p: multiple alignment phylip] (default: f)')
     parser.add_argument('-g', metavar='MODE', type=int, choices=[0, 1, 2], default=0,
                         help='gap manipulation [0: BLAST identity; 1: gap-excluded identity; 2: gap-compressed identity] (default: 0)')
+    parser.add_argument('-d', action='store_true',
+                        help='output distance (1-ibs)')
     parser.add_argument('-o', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
                         help='output file (default: stdout)')
     parser.add_argument('--aligner', metavar='PROG', choices=['muscle', 'mafft', 'needle'],
@@ -87,7 +89,7 @@ def check_program(prog):
     elif prog == 'mafft':
         check_mafft()
 
-def seq_identity(s1, s2, gap_mode=0):
+def seq_identity(s1, s2, gap_mode=0, return_dist=False):
     '''
     https://lh3.github.io/2018/11/25/on-the-definition-of-sequence-identity
     gap_mode=0, BLAST identity, matches over alignment length.
@@ -129,11 +131,16 @@ def seq_identity(s1, s2, gap_mode=0):
             Mismatch += 1
 
     if gap_mode == 0:
-        return Match / (Match + Mismatch + Gap)
+        score = Match / (Match + Mismatch + Gap)
     elif gap_mode == 1:
-        return Match / (Match + Mismatch)
+        score = Match / (Match + Mismatch)
     elif gap_mode == 2:
-        return Match / (Match + Mismatch + GapCount)
+        score = Match / (Match + Mismatch + GapCount)
+
+    if return_dist:
+        score = 1 - score
+
+    return score
 
 def pairwise_alignment(s1, s2, prog='muscle', opts=[]):
     '''
@@ -254,14 +261,18 @@ def main():
             seq_num = len(FA)
             for n1 in range(seq_num):
                 for n2 in range(n1 + 1, seq_num):
-                    df.at[FA[n1].id, FA[n2].id] = df.at[FA[n2].id, FA[n1].id] = '{:.8f}'.format(seq_identity(str(FA[n1].seq), str(FA[n2].seq), args.g))
+                    df.at[FA[n1].id, FA[n2].id] = df.at[FA[n2].id, FA[n1].id] = '{:.8f}'.format(seq_identity(str(FA[n1].seq), str(FA[n2].seq), args.g, args.d))
         elif args.f == 'p':
             with open(args.IN) as f:
                 for alns in RelaxedPhylipParser(f):
-                    df.at[alns[0][0], alns[1][0]] = df.at[alns[1][0], alns[0][0]] = '{:.8f}'.format(seq_identity(alns[0][1], alns[1][1], args.g))
+                    df.at[alns[0][0], alns[1][0]] = df.at[alns[1][0], alns[0][0]] = '{:.8f}'.format(seq_identity(alns[0][1], alns[1][1], args.g, args.d))
 
-        for i in df.columns:
-            df.at[i, i] = '{:.8f}'.format(1.0)
+        if args.d:
+            for i in df.columns:
+                df.at[i, i] = '{:.8f}'.format(0.0)
+        else:
+            for i in df.columns:
+                df.at[i, i] = '{:.8f}'.format(1.0)
         df_to_phylip_matrix(df, args.o)
     # perform pairwise alignment
     else:
