@@ -8,15 +8,17 @@ suppressMessages(library(argparse))
 
 parser <- ArgumentParser(description='Plot coverage.')
 parser$add_argument('bed',
-                    help='bed file')
+                    help='bed file (.bed or .bed.gz)')
 parser$add_argument('pdf', nargs='?',
                     help='output pdf file (AUTO)')
 parser$add_argument('-n', type='integer', default=10,
                     help='print n sequences (10)')
-parser$add_argument('--longest', action='store_true',
-                    help='select n longest sequences instead of frist n')
+parser$add_argument('-c', type='integer', default=4,
+                    help='nth column to plot on y axis (4)')
 parser$add_argument('--ylim', default='2m',
                     help='can be NULL, int, [0-9]+m (int*median) (2m)')
+parser$add_argument('--longest', action='store_true',
+                    help='select n longest sequences instead of frist n')
 parser$add_argument('--portrait', action='store_true',
                     help='portrait orientation')
 # parser$add_argument('--size', default='11.69,8.67',
@@ -26,12 +28,19 @@ args = parser$parse_args()
 FIN         = args$bed
 FOUT        = args$pdf
 scaf_n      = args$n
+col_n       = args$c
 select_long = args$longest
 ylim        = args$ylim
 portrait    = args$portrait
 
-if (! endsWith(FIN, '.bed')) {
+if (! (endsWith(FIN, '.bed') || endsWith(FIN, '.bed.gz'))) {
     stop('Input must be bed file.', call.=FALSE)
+}
+
+if (endsWith(FIN, '.gz')) {
+    handle = gzfile(FIN)
+} else {
+    handle = FIN
 }
 
 if (is.null(FOUT)) {
@@ -41,13 +50,9 @@ if (is.null(FOUT)) {
 }
 
 # col: chr start end value
-df = read.delim(FIN, header = FALSE, stringsAsFactors = FALSE)
-df$V1 = factor(df$V1, levels = unique(df$V1))  # to preserve chr order in bed file
-# omit additional columns
-if (ncol(df) > 4) {
-    message('More than 4 columns are omitted.')
-    df = df[,1:4]
-}
+df = read.delim(handle, header = FALSE, stringsAsFactors = FALSE) %>%
+    select(c(1,2,3), V4=col_n)
+df$V1 = factor(df$V1, levels = unique(df$V1))  # to preserve original order in bed file
 
 if (! select_long) {
     # first n scaffolds only
