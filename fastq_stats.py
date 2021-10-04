@@ -245,9 +245,9 @@ N90:            {} '''.format(FIN, lengths[-1], lengths[0], len(lengths), total_
         if args.q:
             print()
             print('# quality stats')
-            print(f'Q>20: {Q20}')
-            print(f'Q>10: {Q10}')
-            print(f'Q> 7: {Q7}')
+            print(f'Q>=20: {Q20}')
+            print(f'Q>=10: {Q10}')
+            print(f'Q>= 7: {Q7}')
 
     if args.p:
         print('\nPlotting histogram...', file=sys.stderr)
