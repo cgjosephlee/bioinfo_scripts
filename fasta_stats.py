@@ -8,8 +8,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='fasta statistics')
     parser.add_argument('fasta',
                         help='fasta file')
-    parser.add_argument('-c', metavar='cutoff', type=int, default=0,
-                        help='minimun length cutoff (0)')
+    parser.add_argument('-l', metavar='len', type=int, default=0,
+                        help='minimun sequence length (0)')
     parser.add_argument('-s', action='store_true',
                         help='print single line format')
     return parser.parse_args()
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     args = parse_args()
     FIN = args.fasta
     FIN = io.BufferedReader(gzip.open(FIN)) if FIN.endswith('.gz') else open(FIN, 'rb')
-    cutoff = args.c
+    cutoff = args.l
 
     lengths = {}
     Ns = {}
