@@ -127,7 +127,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='fastq statistics for long reads')
     parser.add_argument('fastq',
                         help='fastq file, \'-\' to read from STDIN')
-    parser.add_argument('-c', metavar='cutoff', type=int, default=0,
+    parser.add_argument('-l', metavar='cutoff', type=int, default=0,
                         help='minimun length cutoff (0)')
     parser.add_argument('-q', action='store_true',
                         help='calculate mead Q stats (slow!)')
@@ -140,7 +140,7 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     FIN = args.fastq
-    cutoff = args.c
+    cutoff = args.l
 
     if args.p:
         try:
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                 Q20 += 1
 
     if args.s:
-        # total_base seq_num mean max min L50 L90
+        # total_base seq_num mean max min N50 N90
         print(
             total_len,
             len(lengths),
