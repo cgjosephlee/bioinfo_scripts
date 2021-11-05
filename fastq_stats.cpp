@@ -263,15 +263,15 @@ void generate_output_diff(
         unsigned long nB, unsigned long n,
         unsigned long long totLenB, unsigned long long totLen
         ) {
-    fputc('\n', fp);
+    fprintf(fp, "\n");
     fprintf(fp, "%lu/%lu (%.2f%%) reads, ", n, nB, (double)n/nB*100.0);
-    fprintf(fp, "%llu/%llu (%.2f%%) bases are discarded.\n", totLen, totLenB, (double)totLen/totLenB*100.0);
+    fprintf(fp, "%llu/%llu (%.2f%%) bases are preserved.\n", totLen, totLenB, (double)totLen/totLenB*100.0);
 }
 
 int main(int argc, char *argv[]) {
 	gzFile fp;
-    FILE *fpDump = NULL, *fpStatBefore = NULL;
 	kseq_t *seq;
+    FILE *fpDump = NULL, *fpStatBefore = NULL;
     unsigned long filterLen;
     float filterQual;
     bool ignoreQ = false, shortOutput = false, doFilter = false;
@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
         printf("    -l NUM   minimum length\n");
         printf("    -q NUM   minimum mean quality\n");
         printf("    -B FILE  print read stats before filtering\n");
-        printf("    -D FILE  dump read stat to file\n");
+        printf("    -D FILE  dump per read stats to file\n");
         printf("    -s       short output\n");
 		return 1;
 	}
@@ -307,8 +307,7 @@ int main(int argc, char *argv[]) {
 	seq = kseq_init(fp);
 
     // memoization
-    float *memo;
-    memo = (float*)malloc(sizeof(float)*100);
+    float memo[100];
     for (int j = 0; j < 100; ++j)
         memo[j] = -1.0;
 
@@ -360,7 +359,6 @@ int main(int argc, char *argv[]) {
                 fprintf(fpDump, "%s\t%lu\t%.6f\n", seq->name.s, seq->seq.l, meanQ);
         }
     }
-    free(memo);
 
 	if (r != -1) fprintf(stderr, "ERROR: malformated FASTX\n");
 	kseq_destroy(seq);
