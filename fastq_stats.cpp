@@ -13,11 +13,8 @@ KSEQ_INIT(gzFile, gzread)
 
 // https://github.com/rrwick/Filtlong/blob/f0cb3b34907b9fdf204fda3a36f61cf07b50f68f/src/read.cpp#L270
 // https://github.com/lh3/seqtk/blob/7c04ce7898ad5909bd309c6ba3cd9c3bd0651f0e/seqtk.c#L1843
-// https://lellansin.wordpress.com/2015/05/18/cc-使用-memoization-优化算法/
 inline float qscore_to_quality(char qscore, float *memo) {
     int q = qscore - 33;
-    if (memo[q] == -1.0)
-        memo[q] = powf(10.0, -q / 10.0);
     return memo[q];
 }
 
@@ -271,9 +268,9 @@ void generate_output_diff(
 int main(int argc, char *argv[]) {
 	gzFile fp;
 	kseq_t *seq;
-    FILE *fpDump = NULL, *fpStatBefore = NULL;
-    unsigned long filterLen;
-    float filterQual;
+    FILE *fpDump = 0, *fpStatBefore = 0;
+    unsigned long filterLen = 0;
+    float filterQual = 0.0;
     bool ignoreQ = false, shortOutput = false, doFilter = false;
     int c;
     while ((c = getopt(argc, argv, "Al:q:B:D:s")) >= 0) {
@@ -309,7 +306,7 @@ int main(int argc, char *argv[]) {
     // memoization
     float memo[100];
     for (int j = 0; j < 100; ++j)
-        memo[j] = -1.0;
+        memo[j] = powf(10.0, -j / 10.0);
 
     // stats
 	int r = 0;
@@ -326,22 +323,24 @@ int main(int argc, char *argv[]) {
     // read seq
     if (doFilter) {
         while ((r = kseq_read(seq)) >= 0) {
-            ++nB;
-            totLenB += seq->seq.l;
-            seqLengthsB.push_back(seq->seq.l);
-            if (! ignoreQ && seq->qual.l) {
+            if (! ignoreQ && seq->qual.l)
                 meanQ = get_mean_quality(seq->qual.s, memo);
-                seqQualsB.push_back(meanQ);
+            if (fpStatBefore) {
+                // stats before filtering
+                ++nB;
+                totLenB += seq->seq.l;
+                seqLengthsB.push_back(seq->seq.l);
+                if (! ignoreQ && seq->qual.l)
+                    seqQualsB.push_back(meanQ);
             }
             if (seq->seq.l >= filterLen && meanQ >= filterQual) {
-                // pass
+                // pass filter
                 print_seq(stdout, seq);
                 ++n;
                 totLen += seq->seq.l;
                 seqLengths.push_back(seq->seq.l);
-                if (! ignoreQ && seq->qual.l) {
+                if (! ignoreQ && seq->qual.l)
                     seqQuals.push_back(meanQ);
-                }
             }
             if (fpDump)
                 fprintf(fpDump, "%s\t%lu\t%.6f\n", seq->name.s, seq->seq.l, meanQ);
