@@ -325,10 +325,10 @@ int main(int argc, char *argv[]) {
         while ((r = kseq_read(seq)) >= 0) {
             if (! ignoreQ && seq->qual.l)
                 meanQ = get_mean_quality(seq->qual.s, memo);
+            ++nB;
+            totLenB += seq->seq.l;
             if (fpStatBefore) {
                 // stats before filtering
-                ++nB;
-                totLenB += seq->seq.l;
                 seqLengthsB.push_back(seq->seq.l);
                 if (! ignoreQ && seq->qual.l)
                     seqQualsB.push_back(meanQ);
