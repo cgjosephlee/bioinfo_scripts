@@ -53,7 +53,7 @@ if args.f:
             except KeyError:
                 newID = oldID
                 print('"{}" not in list.', file=sys.stderr)
-            print('>{}'.format(newID)
+            print('>{}'.format(newID))
         else:
             print(line.strip())
 else:
