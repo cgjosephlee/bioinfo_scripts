@@ -749,8 +749,8 @@ if errors_found > 0:
 if hasattr(args, "fq_size") and args.fq_size>0 :
 	os.mkdir(partial_fastq_wdir)
 	soft = os.path.join(bin_common_dir, "extractfq.py")
-	outfq1 = os.path.join(partial_fastq_wdir, 'partial.1.fq.gz')
-	outfq2 = os.path.join(partial_fastq_wdir, 'partial.2.fq.gz')
+	outfq1 = os.path.join(partial_fastq_wdir, 'partial.1.fq')
+	outfq2 = os.path.join(partial_fastq_wdir, 'partial.2.fq')
 
 	# the order is important
 	if args.fastq1 and os.path.isfile(args.fastq1) and args.fastq2 and os.path.isfile(args.fastq2):
@@ -760,7 +760,6 @@ if hasattr(args, "fq_size") and args.fq_size>0 :
 			" -outfq1 " + outfq1 +\
 			" -outfq2 " + outfq2 +\
 			" -size_required " + str(args.fq_size)  +\
-			" -gz "  +\
 			" -cache_num 1500000 "
 		runcmd(command)
 		args.fastq1 = outfq1
@@ -771,7 +770,6 @@ if hasattr(args, "fq_size") and args.fq_size>0 :
 			" -fq1 " + args.fastq1 +\
 			" -outfq1 " + outfq1 +\
 			" -size_required " + str(args.fq_size)  +\
-			" -gz "  +\
 			" -cache_num 1500000 "
 		runcmd(command)
 		args.fastq1 = outfq1
@@ -781,7 +779,6 @@ if hasattr(args, "fq_size") and args.fq_size>0 :
 			" -fq1 " + args.fastq2 +\
 			" -outfq1 " + outfq2 +\
 			" -size_required " + str(args.fq_size)  +\
-			" -gz "  +\
 			" -cache_num 1500000 "
 		runcmd(command)
 		args.fastq2 = outfq2
