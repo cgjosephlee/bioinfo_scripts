@@ -27,7 +27,8 @@ parser.add_argument('-i', type=int, help='number of iterations (%(default)s)', d
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
 parser.add_argument('-t', type=int, help='threads (%(default)s)', default=20)
 parser.add_argument('-d', action='store_true', help='discard unmapped reads in bam')  # useful when low mappping rate
-parser.add_argument('--aligner', type=str, help='bwa, bwa2 or smalt (%(default)s)', default='bwa')
+parser.add_argument('-c', action='store_true', help='clean "_pilon" suffix')
+parser.add_argument('--aligner', type=str, help='bwa, bwa2 or smalt (%(default)s)', default='bwa2')
 parser.add_argument('--exec', type=str, help='path of aligner executable')
 args = parser.parse_args()
 
@@ -103,6 +104,9 @@ for n in range(iter_n):
 
         sp.run('java -Xms512m -Xmx{}G -jar {} --genome {} --frags {}.bam --output {} --changes --threads {}'.format(maxMem, pilon_jar, fa_in, fa_out, fa_out, threads), shell=True, check=True, stdout=ERR)
         fa_out = fa_out + '.fasta'
+
+        if args.c:
+            sp.run('sed -i "s/_pilon$//g" {}'.format(fa_out), shell=True, check=True, stderr=ERR)
 
     print('[{}] Iteration {} finish! (Elapsed: {} sec)'.format(
         time.strftime("%H:%M:%S", time.localtime()),
