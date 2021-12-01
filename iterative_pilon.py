@@ -26,6 +26,7 @@ parser.add_argument('-m', type=int, help='max mem for java in Gb (%(default)s)',
 parser.add_argument('-i', type=int, help='number of iterations (%(default)s)', default=5)
 parser.add_argument('-p', type=str, help='output prefix (input basename)', default=None)
 parser.add_argument('-t', type=int, help='threads (%(default)s)', default=20)
+parser.add_argument('-d', action='store_true', help='discard unmapped reads in bam')  # useful when low mappping rate
 parser.add_argument('--aligner', type=str, help='bwa, bwa2 or smalt (%(default)s)', default='bwa')
 parser.add_argument('--exec', type=str, help='path of aligner executable')
 args = parser.parse_args()
@@ -40,6 +41,7 @@ prefix = args.p
 threads = args.t
 aligner = args.aligner
 exec = args.exec
+flags = 'samtools view -u -F 4 |' if args.d else ''
 
 if not fa_base == os.path.basename(fa_base):
     os.chdir(os.path.dirname(fa_base))
@@ -87,15 +89,15 @@ for n in range(iter_n):
         if not os.path.isfile(fa_out + '.bam'):
             if aligner == 'bwa':
                 sp.run([exec, 'index', '-p', fa_in + '.bwa1', fa_in], check=True, stderr=ERR)
-                sp.run('{} mem -v 1 -t {} {}.bwa1 {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('{} mem -v 1 -t {} {}.bwa1 {} {} | samblaster | {} samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, flags, threads, fa_out), shell=True, check=True, stderr=ERR)
                 sp.run('rm {}.bwa1*'.format(fa_in), shell=True, check=True)
             elif aligner == 'bwa2':
                 sp.run([exec, 'index', '-p', fa_in + '.bwa2', fa_in], check=True, stdout=ERR, stderr=sp.STDOUT)
-                sp.run('{} mem -v 1 -t {} {}.bwa2 {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('{} mem -v 1 -t {} {}.bwa2 {} {} | samblaster | {} samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, flags, threads, fa_out), shell=True, check=True, stderr=ERR)
                 sp.run('rm {}.bwa2*'.format(fa_in), shell=True, check=True)
             elif aligner == 'smalt':
                 sp.run('{0} index {1} {1}'.format(exec, fa_in), shell=True, check=True, stderr=ERR)
-                sp.run('{} map -n {} {} {} {} | samblaster | samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, threads, fa_out), shell=True, check=True, stderr=ERR)
+                sp.run('{} map -n {} {} {} {} | samblaster | {} samtools sort -@ {} -O bam -o {}.bam -'.format(exec, threads, fa_in, fq1, fq2, flags, threads, fa_out), shell=True, check=True, stderr=ERR)
                 sp.run('rm {0}.sma {0}.smi'.format(fa_in), shell=True, check=True)
             sp.run('samtools index {}.bam'.format(fa_out), shell=True, check=True, stderr=ERR)
 
