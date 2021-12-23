@@ -1,0 +1,133 @@
+diff --git a/MitoZ.py b/MitoZ.py
+index 9ec261e..258c353 100755
+--- a/MitoZ.py
++++ b/MitoZ.py
+@@ -749,8 +749,8 @@ if errors_found > 0:
+ if hasattr(args, "fq_size") and args.fq_size>0 :
+ 	os.mkdir(partial_fastq_wdir)
+ 	soft = os.path.join(bin_common_dir, "extractfq.py")
+-	outfq1 = os.path.join(partial_fastq_wdir, 'partial.1.fq.gz')
+-	outfq2 = os.path.join(partial_fastq_wdir, 'partial.2.fq.gz')
++	outfq1 = os.path.join(partial_fastq_wdir, 'partial.1.fq')
++	outfq2 = os.path.join(partial_fastq_wdir, 'partial.2.fq')
+ 
+ 	# the order is important
+ 	if args.fastq1 and os.path.isfile(args.fastq1) and args.fastq2 and os.path.isfile(args.fastq2):
+@@ -760,7 +760,6 @@ if hasattr(args, "fq_size") and args.fq_size>0 :
+ 			" -outfq1 " + outfq1 +\
+ 			" -outfq2 " + outfq2 +\
+ 			" -size_required " + str(args.fq_size)  +\
+-			" -gz "  +\
+ 			" -cache_num 1500000 "
+ 		runcmd(command)
+ 		args.fastq1 = outfq1
+@@ -771,7 +770,6 @@ if hasattr(args, "fq_size") and args.fq_size>0 :
+ 			" -fq1 " + args.fastq1 +\
+ 			" -outfq1 " + outfq1 +\
+ 			" -size_required " + str(args.fq_size)  +\
+-			" -gz "  +\
+ 			" -cache_num 1500000 "
+ 		runcmd(command)
+ 		args.fastq1 = outfq1
+@@ -781,7 +779,6 @@ if hasattr(args, "fq_size") and args.fq_size>0 :
+ 			" -fq1 " + args.fastq2 +\
+ 			" -outfq1 " + outfq2 +\
+ 			" -size_required " + str(args.fq_size)  +\
+-			" -gz "  +\
+ 			" -cache_num 1500000 "
+ 		runcmd(command)
+ 		args.fastq2 = outfq2
+@@ -1893,6 +1890,7 @@ def annotate(bin_annotate_dir=None, annotate_wdir=None, mitoscaf_file=None, MT_a
+ 	runcmd(command)
+ 	# gene sequence files
+ 	cds_file = prefix + '.cds'
++	prot_file = prefix + '.prot'
+ 	trna_file = prefix + '.trna'
+ 	rrna_file = prefix + '.rrna'
+ 	control_region_file = prefix + '.misc_feature'
+@@ -1901,7 +1899,7 @@ def annotate(bin_annotate_dir=None, annotate_wdir=None, mitoscaf_file=None, MT_a
+ 	# gather_result(fsa_file, cds_position, cds_position_revised, annotation_infile_cdsft, annotation_infile_trnaft, s_rRNA_ft,
+ 	#	l_rRNA_ft, tbl_file)
+ 
+-	gather_result(tbl_file, 'summary.txt', cds_file, trna_file, rrna_file, control_region_file, whole_mt_file)
++	gather_result(tbl_file, 'summary.txt', cds_file, prot_file, trna_file, rrna_file, control_region_file, whole_mt_file)
+ 
+ 
+ 	tbl2asn_tbl = annotation_infile + ".tbl"
+diff --git a/bin/common/gbseqextractor_v2.py b/bin/common/gbseqextractor_v2.py
+index c786df0..4f1381f 100755
+--- a/bin/common/gbseqextractor_v2.py
++++ b/bin/common/gbseqextractor_v2.py
+@@ -100,9 +100,10 @@ def to_1_leftmost(pos=None):
+ def main():
+ 	args = get_para()
+ 
+-	fh_cds = fh_rrna = fh_trrna = fh_wholeseq = ""
++	fh_cds = fh_prot = fh_rrna = fh_trrna = fh_misc = fh_wholeseq = ""
+ 	if "CDS" in args.types:
+ 		fh_cds = open(args.prefix+".cds", 'w')
++		fh_prot = open(args.prefix+".prot", 'w')
+ 
+ 	if "rRNA" in args.types:
+ 		fh_rrna = open(args.prefix+".rrna", 'w')
+@@ -140,18 +141,18 @@ def main():
+ 				wholeseq_idline += rec.id
+ 
+ 			if args.l:
+-				wholeseq_idline += ";len="+str(len(rec))
++				wholeseq_idline += " len="+str(len(rec))
+ 
+ 			if args.s:
+ 				species = str(rec.annotations['organism'])
+-				wholeseq_idline += ";" + species
++				wholeseq_idline += " " + species
+ 
+ 			if args.t:
+ 				taxonomy = str(rec.annotations['taxonomy'])
+ 				taxonomy = taxonomy.replace("'", "")
+-				wholeseq_idline += ";"+ taxonomy
++				wholeseq_idline += " "+ taxonomy
+ 
+-			wholeseq_idline += ";topology={0}".format(rec.annotations['topology'])
++			wholeseq_idline += " topology={0}".format(rec.annotations['topology'])
+ 
+ 			print(wholeseq_idline, file=fh_wholeseq)
+ 			print(rec.seq, file=fh_wholeseq)
+@@ -238,9 +239,15 @@ def main():
+ 					if strand == -1:
+ 						gene_seq = gene_seq.reverse_complement()
+ 
++				prot_seq = ''
++				if 'translation' in fea.qualifiers:
++					prot_seq = fea.qualifiers['translation'][0]
++
+ 				if fea.type == "CDS":
+ 					print(idline, file=fh_cds)
+ 					print(gene_seq, file=fh_cds)
++					print(idline, file=fh_prot)
++					print(prot_seq, file=fh_prot)
+ 				elif fea.type == "rRNA":
+ 					print(idline, file=fh_rrna)
+ 					print(gene_seq, file=fh_rrna)
+@@ -254,6 +261,7 @@ def main():
+ 
+ 	if fh_cds:
+ 		fh_cds.close()
++		fh_prot.close()
+ 
+ 	if fh_rrna:
+ 		fh_rrna.close()
+diff --git a/bin/common/genbank_gene_stat_v2.py b/bin/common/genbank_gene_stat_v2.py
+index 18accf2..ee9e72d 100644
+--- a/bin/common/genbank_gene_stat_v2.py
++++ b/bin/common/genbank_gene_stat_v2.py
+@@ -75,8 +75,7 @@ def gene_stat(gbfile=None):
+             start = fea.location.start
+             start = to_1_leftmost(start)
+ 
+-            end = fea.location.end
+-            end = to_1_leftmost(end)
++            end = str(fea.location.end)
+ 
+             strand = fea.location.strand  # is a number
+             if strand == 1:

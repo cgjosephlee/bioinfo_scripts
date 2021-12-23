@@ -1,6 +1,12 @@
 Source: https://github.com/linzhi2013/MitoZ/blob/master/version_2.4-alpha/Dockerfile
 
-Fix privilege problem, expnad --clade option.
+Patches: https://github.com/cgjosephlee/MitoZ_codebase
+- Fix privilege problem.
+- Expnad --clade option. 
+- Disable slow fastq compression.
+- Fix gene coordinates in summary.txt.
+- Fix comments in fasta header.
+- Add protein output.
 
 ```
 docker build . -t mitoz_patched:2.4-alpha
