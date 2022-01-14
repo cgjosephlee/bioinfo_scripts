@@ -35,7 +35,7 @@ fi
 barcode_mode=false
 if [[ ! -z "$barcode_kit" ]]; then
     barcode_mode=true
-    barcode_opts="--barcode_kits ${KIT} --trim_barcodes --chunks_per_runner 150"
+    barcode_opts="--barcode_kits ${barcode_kit} --trim_barcodes --chunks_per_runner 150"
     # reduce chunks to use less GPU mem (for GTX1080 Ti 12G)
 fi
 
@@ -49,7 +49,7 @@ threads=6  # pigz
 #     guppy_basecaller -c $guppy_model -i $IN -s $OUT -x 'cuda:all' -q 0 -r --disable_qscore_filtering "$barcode_opts"
 
 # built-in
-guppy_basecaller -c $guppy_model -i $IN -s $OUT -x 'cuda:all' -q 0 -r --disable_qscore_filtering "$barcode_opts"
+guppy_basecaller -c $guppy_model -i $IN -s $OUT -x 'cuda:all' -q 0 -r --disable_qscore_filtering $barcode_opts
 
 if [[ "$barcode_mode" == false ]]; then
     find $OUT -name '*fastq' | \

@@ -81,7 +81,8 @@ def parse_gff_gene_lines(lines):
         elif line[2] in ('mRNA', 'tRNA', 'rRNA'):
             num_gene_type += 1
     if len(gene['CDS']) == 0 and len(gene['exon']) == 0:
-        raise ValueError('No exon nor CDS?')
+        # raise ValueError('No exon nor CDS?')
+        print('ERROR: No exon nor CDS? ({})'.format(' '.join(lines[0])), file=sys.stderr)
     if num_gene_type > 1:
         raise NotImplementedError('Not support alternative splicing gene.')
     return gene
@@ -103,6 +104,7 @@ def parse_arg():
                         help='field for naming sequences (ID, Name, etc.) (Name)')
     parser.add_argument('--table', metavar='code', type=int, default=4,
                         help='genetic code table for translation (4, for mito)')
+    # https://biopython.org/docs/1.75/api/Bio.Seq.html#Bio.Seq.translate
     parser.add_argument('--no-tostop', action='store_false',
                         help='[debug] to_stop=False')
     parser.add_argument('--no-cds', action='store_false',
@@ -153,7 +155,8 @@ if __name__ == '__main__':
             for s, e in gene['exon']:
                 nt_seq += FA_dict[gene['chr']].seq[s:e]
         else:
-            raise ValueError('No exon nor CDS?')
+            # raise ValueError('No exon nor CDS?')
+            continue
         if gene['strand'] == 0:
             nt_seq = nt_seq.reverse_complement()
         print('>{}\n{}'.format(header, nt_seq), file=nt_out)
