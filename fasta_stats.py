@@ -59,7 +59,7 @@ if __name__ == '__main__':
                 above_counts[i] += 1
 
     if args.s:
-        # total_base seq_num mean max L50 N50 L90 N90 N
+        # total_base seq_num mean(kb) max(kb) N50(kb) L50 N90(kb) L90 N
         print(
             total_len,
             total_seqs,
